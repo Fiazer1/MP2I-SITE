@@ -16,6 +16,7 @@ const USE_FB = !!(typeof FIREBASE_CONFIG!=='undefined' && FIREBASE_CONFIG.apiKey
 let fdb=null;
 if (USE_FB && window.firebase){ try{ firebase.initializeApp(FIREBASE_CONFIG); fdb=firebase.firestore(); }catch(e){ console.warn('Firebase init échoué, repli local',e);} }
 const ONLINE = !!fdb;
+function nowStamp(){ return ONLINE ? firebase.firestore.FieldValue.serverTimestamp() : Date.now(); }
 
 const LS_DB='mp2i_db';
 function localLoad(){ try{ return JSON.parse(localStorage.getItem(LS_DB))||{users:{}}; }catch{ return {users:{}}; } }
@@ -43,7 +44,7 @@ function blankUser(name){
 async function seedIfNeeded(){
   const users=await DB.listUsers();
   if(users.length>0) return;
-  for(const name of STUDENTS){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; await DB.setUser(name,u); }
+  for(const name of STUDENTS){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; u.lastWrite=nowStamp(); await DB.setUser(name,u); }
 }
 
 /* ---------- session ---------- */
@@ -141,7 +142,13 @@ async function enterApp(forcePw=false){
   $('#app').classList.remove('hidden');
   const sess=getSession();
   // recharge CU si élève
-  if(sess && !sess.isGuest){ CU=await DB.getUser(sess.name); }
+  if(sess && !sess.isGuest){
+    CU=await DB.getUser(sess.name);
+    // migration : comptes créés avant les règles plafonnées (pas de lastWrite)
+    if(ONLINE && CU && CU.lastWrite===undefined){
+      try{ await DB.setUser(CU.name,{lastWrite:nowStamp()}); CU.lastWrite=Date.now(); }catch(e){}
+    }
+  }
   buildTopbar(sess);
   buildTabs(sess);
   showTab('cours');
@@ -245,7 +252,10 @@ function renderCours(){
 let quiz={mode:null, pool:[], current:null, answered:false, timer:null, timeLeft:0, sessScore:0, sessTotal:0};
 const RANKED_SECONDS=300;
 function counting(mode){ return mode==='classe'||mode==='application'; }
-function poolFor(mode){ return mode==='application' ? QUESTIONS.filter(q=>q.mode==='application') : QUESTIONS.slice(); }
+function poolFor(mode){
+  if(mode==='application') return (typeof TEMPLATES!=='undefined' && TEMPLATES.length) ? TEMPLATES.slice() : QUESTIONS.filter(q=>q.mode==='application');
+  return QUESTIONS.slice();
+}
 
 function renderQuizHome(){
   const root=$('#tab-quiz'); root.innerHTML='';
@@ -290,7 +300,8 @@ function stopTimer(){ if(quiz.timer){ clearInterval(quiz.timer); quiz.timer=null
 function nextQuestion(){
   stopTimer(); quiz.answered=false;
   quiz.current=quiz.pool[Math.floor(Math.random()*quiz.pool.length)];
-  const q=quiz.current, keys=['A','B','C','D'], order=shuffle([0,1,2,3]);
+  quiz.resolved = quiz.current.gen ? Object.assign({chap:quiz.current.chap, mode:quiz.current.mode}, quiz.current.gen()) : quiz.current;
+  const q=quiz.resolved, keys=['A','B','C','D'], order=shuffle([0,1,2,3]);
   const card=$('#qcard');
   const isApp=q.mode==='application';
   let timerHtml = counting(quiz.mode) ? '<span class="timer" id="qtimer">05:00</span>' : '<span>'+(quiz.mode==='libre'?'sans chrono':'')+'</span>';
@@ -320,21 +331,21 @@ function timeout(){
   if(quiz.answered) return; quiz.answered=true;
   revealCorrect(null);
   if(counting(quiz.mode)) registerResult(false,0);
-  showExplain(false, '⏱ Temps écoulé', quiz.current.e, 0);
+  showExplain(false, '⏱ Temps écoulé', quiz.resolved.e, 0);
 }
 function answer(btn){
   if(quiz.answered) return; quiz.answered=true; stopTimer();
-  const chosen=+btn.dataset.orig, correct=quiz.current.c, ok=chosen===correct;
+  const chosen=+btn.dataset.orig, correct=quiz.resolved.c, ok=chosen===correct;
   revealCorrect(chosen);
   let pts=0;
   if(counting(quiz.mode)){ if(ok){ pts=Math.round(60+140*(quiz.timeLeft/RANKED_SECONDS)); } registerResult(ok,pts); }
   else { quiz.sessTotal++; if(ok) quiz.sessScore++; }
-  showExplain(ok, ok?('✓ Correct'+(pts?(' · +'+pts+' pts'):'')):'✗ Faux', quiz.current.e, pts);
+  showExplain(ok, ok?('✓ Correct'+(pts?(' · +'+pts+' pts'):'')):'✗ Faux', quiz.resolved.e, pts);
 }
 function revealCorrect(chosen){
   $$('#qcard .opt').forEach(b=>{ b.disabled=true; const oi=+b.dataset.orig;
-    if(oi===quiz.current.c) b.classList.add('correct');
-    if(chosen!=null && oi===chosen && chosen!==quiz.current.c) b.classList.add('wrong'); });
+    if(oi===quiz.resolved.c) b.classList.add('correct');
+    if(chosen!=null && oi===chosen && chosen!==quiz.resolved.c) b.classList.add('wrong'); });
 }
 function showExplain(ok, verdict, txt, pts){
   const ex=$('#explain'); ex.className='explain show '+(ok?'ok':'no');
@@ -344,16 +355,18 @@ function showExplain(ok, verdict, txt, pts){
   updateQuizScorebar();
 }
 async function registerResult(ok, pts){
+  // anti-spam : respecte le cooldown des règles (1 s) ; sinon l'écriture serait refusée
+  if(ONLINE){ const now=Date.now(); if(quiz.lastWriteAt && now-quiz.lastWriteAt < 1100) return; quiz.lastWriteAt=now; }
   quiz.sessTotal++; if(ok) quiz.sessScore++;
   if(isGuest() || !CU) return; // pas de persistance pour invités
   CU.attempts=(CU.attempts||0)+1;
   if(ok){ CU.correct=(CU.correct||0)+1; CU.totalPoints=(CU.totalPoints||0)+pts; CU.currentStreak=(CU.currentStreak||0)+1; CU.bestStreak=Math.max(CU.bestStreak||0, CU.currentStreak); }
   else { CU.currentStreak=0; }
-  const ch=quiz.current.chap; CU.chapters=CU.chapters||{};
+  const ch=quiz.resolved.chap; CU.chapters=CU.chapters||{};
   const c=CU.chapters[ch]||{points:0,attempts:0,correct:0};
   c.attempts++; if(ok){ c.correct++; c.points+=pts; }
   CU.chapters[ch]=c;
-  try{ await DB.setUser(CU.name, {attempts:CU.attempts,correct:CU.correct,totalPoints:CU.totalPoints,currentStreak:CU.currentStreak,bestStreak:CU.bestStreak,chapters:CU.chapters}); }catch(e){ console.warn('save échoué',e); }
+  try{ await DB.setUser(CU.name, {attempts:CU.attempts,correct:CU.correct,totalPoints:CU.totalPoints,currentStreak:CU.currentStreak,bestStreak:CU.bestStreak,chapters:CU.chapters,lastWrite:nowStamp()}); }catch(e){ console.warn('save échoué',e); }
   updateQuizScorebar();
 }
 
@@ -484,7 +497,7 @@ function renderParam(){
       if(n1.value!==n2.value){ msg.textContent='Les deux ne correspondent pas.'; return; }
       const hash=await sha256(n1.value);
       CU.passwordHash=hash; CU.mustChangePassword=false;
-      await DB.setUser(CU.name,{passwordHash:hash,mustChangePassword:false});
+      await DB.setUser(CU.name,{passwordHash:hash,mustChangePassword:false,lastWrite:nowStamp()});
       msg.className='ok-msg'; msg.textContent='Mot de passe mis à jour ✓';
       old.value=n1.value=n2.value='';
     };
@@ -510,7 +523,7 @@ function renderAdmin(){
   b1.onclick=async()=>{
     if(!confirm('Réinitialiser TOUS les scores ?')) return;
     b1.disabled=true; const users=await DB.listUsers();
-    for(const u of users){ await DB.setUser(u.name,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{}}); }
+    for(const u of users){ await DB.setUser(u.name,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{},lastWrite:nowStamp()}); }
     if(CU){ Object.assign(CU,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{}}); }
     b1.disabled=false; m1.textContent='Scores réinitialisés ✓';
   };
@@ -524,7 +537,7 @@ function renderAdmin(){
   const bP=h('button',{class:'btn btn-danger'},'Réinitialiser ses scores'); bP.style.marginTop='10px';
   bP.onclick=async()=>{
     if(!confirm('Réinitialiser les scores de '+selP.value+' ?')) return;
-    await DB.setUser(selP.value,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{}});
+    await DB.setUser(selP.value,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{},lastWrite:nowStamp()});
     if(CU&&CU.name===selP.value){ Object.assign(CU,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{}}); }
     mP.textContent='Scores de '+selP.value+' remis à zéro ✓';
   };
@@ -540,7 +553,7 @@ function renderAdmin(){
   b2.onclick=async()=>{
     const pw=(pwInput.value||'').trim();
     const hash = pw ? await sha256(pw) : DEFAULT_PASSWORD_HASH;
-    await DB.setUser(sel.value,{passwordHash:hash,mustChangePassword:true});
+    await DB.setUser(sel.value,{passwordHash:hash,mustChangePassword:true,lastWrite:nowStamp()});
     if(CU&&CU.name===sel.value){ CU.passwordHash=hash; CU.mustChangePassword=true; }
     m2.textContent = pw ? ('Mot de passe de '+sel.value+' → « '+pw+' » ✓')
                         : ('Mot de passe de '+sel.value+' remis au défaut ✓');
@@ -558,7 +571,7 @@ function renderAdmin(){
   b3.onclick=async()=>{
     const existing=new Set((await DB.listUsers()).map(u=>u.name));
     let n=0;
-    for(const name of STUDENTS){ if(!existing.has(name)){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; await DB.setUser(name,u); n++; } }
+    for(const name of STUDENTS){ if(!existing.has(name)){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; u.lastWrite=nowStamp(); await DB.setUser(name,u); n++; } }
     m3.textContent=n+' compte(s) créé(s) ✓';
   };
   c3.append(b3,m3); root.append(c3);
