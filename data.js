@@ -4,7 +4,7 @@
 
 /* --- Élèves (depuis Noms.txt) --- */
 const STUDENTS = [
-  "Ilias","Zineb","Lucas","ABL. Adam","Antonin","Cali","BOI. Enzo","Augustin",
+  "Ilias","Zineb","Lucas","ABL Adam","Antonin","Cali","BOI. Enzo","Augustin",
   "Yassine","Roman","Charles","Amaury","Hugo","Juan","Théa","Jules","Robin",
   "Louis","Nathan","Félix","Maxence","Alrick","Noémi","Enes","Asma","Rémi",
   "Jean","Gael","Ayo","Elouan","BAT. Enzo","BEN. Adam","Ahmed","Alexis","Gabriel"
@@ -203,4 +203,55 @@ const QUESTIONS = [
  // ---------- ALGÈBRE 16 — APPLICATION ----------
  {chap:"Algèbre 16",mode:"application",t:"Solution de $\\begin{cases}x+y=2\\\\x-y=0\\end{cases}$ ?",o:["$(1,1)$","$(2,0)$","$(0,2)$","$(1,-1)$"],c:0,e:"$x=y=1$."},
  {chap:"Algèbre 16",mode:"application",t:"Solution de $\\begin{cases}2x=4\\\\x+y=3\\end{cases}$ ?",o:["$(2,1)$","$(1,2)$","$(2,3)$","$(4,-1)$"],c:0,e:"$x=2$ puis $y=1$."}
+];
+
+/* --- Questions à VALEURS ALÉATOIRES (mode application) ---
+   Chaque template génère un énoncé différent à chaque tirage : impossible de
+   répondre par cœur, il faut vraiment calculer. gen() renvoie {t,o,c,e}
+   (bonne réponse en position 0 ; l'affichage est mélangé par l'app). --- */
+function rint(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function num(v){ return '$'+v+'$'; }
+function pad4(correct, distractors){
+  const vals=[correct];
+  for(const d of distractors){ if(!vals.includes(d)) vals.push(d); if(vals.length===4) break; }
+  let k=1; while(vals.length<4){ const c=correct+k; if(!vals.includes(c)) vals.push(c); k++; }
+  return { o: vals.map(num), c:0 };
+}
+
+const TEMPLATES = [
+  { chap:"Analyse 19", mode:"application", gen(){
+      const b=[2,4][rint(0,1)], a=rint(1,5), r=a*b*b/2;
+      const {o,c}=pad4(r,[a*b*b, a*b, r+a]);
+      return { t:"Calcule $\\displaystyle\\int_0^"+b+" "+a+"x\\,dx$.", o, c,
+               e:"$\\left["+a+"\\tfrac{x^2}{2}\\right]_0^"+b+"="+r+"$." }; } },
+
+  { chap:"Analyse 19", mode:"application", gen(){
+      const a=3*rint(1,3), b=rint(1,4), r=a*b*b*b/3;
+      const {o,c}=pad4(r,[a*b*b*b, a*b*b, r+b]);
+      return { t:"Calcule $\\displaystyle\\int_0^"+b+" "+a+"x^2\\,dx$.", o, c,
+               e:"$\\left["+a+"\\tfrac{x^3}{3}\\right]_0^"+b+"="+r+"$." }; } },
+
+  { chap:"Analyse 19", mode:"application", gen(){
+      const a=rint(1,5), b=rint(1,6), r=a*b;
+      const {o,c}=pad4(r,[a+b, r+a, b]);
+      return { t:"Calcule $\\displaystyle\\int_0^"+b+" "+a+"\\,dx$.", o, c,
+               e:"$["+a+"x]_0^"+b+"="+r+"$." }; } },
+
+  { chap:"Analyse 19", mode:"application", gen(){
+      const b=[2,4][rint(0,1)], a=rint(1,5), r=a*b/2;
+      const {o,c}=pad4(r,[a*b, r+a, a]);
+      return { t:"Valeur moyenne de $f(x)="+a+"x$ sur $[0;"+b+"]$ ?", o, c,
+               e:"$\\frac1{"+b+"}\\int_0^"+b+" "+a+"x\\,dx=\\frac1{"+b+"}\\cdot"+(a*b*b/2)+"="+r+"$." }; } },
+
+  { chap:"Algèbre 15", mode:"application", gen(){
+      const a=rint(1,3), b=rint(1,3), k=rint(2,3);
+      return { t:"Rang de $\\begin{pmatrix}"+a+"&"+b+"\\\\"+(k*a)+"&"+(k*b)+"\\end{pmatrix}$ ?",
+               o:["$1$","$2$","$0$","indéfini"], c:0,
+               e:"$L_2="+k+"L_1$ : lignes proportionnelles, donc rang $1$." }; } },
+
+  { chap:"Algèbre 16", mode:"application", gen(){
+      const s=2*rint(2,4), d=2*rint(1, (s/2)-1), x=(s+d)/2, y=(s-d)/2;
+      return { t:"Résous $\\begin{cases}x+y="+s+"\\\\x-y="+d+"\\end{cases}$",
+               o:["$("+x+",\\,"+y+")$","$("+y+",\\,"+x+")$","$("+s+",\\,"+d+")$","$("+x+",\\,"+(-y)+")$"], c:0,
+               e:"$x=\\frac{"+s+"+"+d+"}{2}="+x+",\\quad y=\\frac{"+s+"-"+d+"}{2}="+y+"$." }; } }
 ];
