@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal de khôlle — MP2I</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<!-- Firebase (compat). Inutilisé tant que config.js n'a pas de clé -> mode local. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <!-- CONNEXION -->
+  <section id="login"></section>
+
+  <!-- APPLICATION -->
+  <section id="app" class="hidden">
+    <div class="topbar" id="topbar"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="panel active" id="tab-cours"></div>
+    <div class="panel" id="tab-quiz"></div>
+    <div class="panel" id="tab-retro"></div>
+    <div class="panel" id="tab-classement"></div>
+    <div class="panel" id="tab-param"></div>
+    <div class="panel" id="tab-admin"></div>
+    <p class="footnote">// MP2I · révise, t'entraînes, grimpe au classement</p>
+  </section>
+</div>
+
+<!-- config AVANT data/app -->
+<script src="config.js"></script>
+<script src="data/data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
