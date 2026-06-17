@@ -354,11 +354,33 @@ function showExplain(ok, verdict, txt, pts){
   $('#skip').style.display='none'; $('#next').style.display='inline-block';
   updateQuizScorebar();
 }
+function snapshotCU(){
+  return {attempts:CU.attempts, correct:CU.correct, totalPoints:CU.totalPoints,
+          currentStreak:CU.currentStreak, bestStreak:CU.bestStreak, chapters:CU.chapters, lastWrite:nowStamp()};
+}
+// File d'attente : on tente d'écrire le snapshot courant ; si la règle refuse
+// (pas assez de temps écoulé pour le nombre de réponses), on réessaie plus tard.
+// Rien n'est perdu : l'UI est déjà à jour, le serveur rattrape dès qu'il peut.
+let flushTimer=null, flushing=false, flushPending=false;
+function scheduleFlush(){ flushPending=true; if(flushTimer||flushing) return; flushTimer=setTimeout(doFlush,0); }
+async function doFlush(){
+  flushTimer=null;
+  if(flushing || !CU || isGuest()) return;
+  flushing=true; flushPending=false;
+  try{
+    await DB.setUser(CU.name, snapshotCU());
+  }catch(e){
+    flushPending=true; flushing=false;          // refusé -> on retente
+    flushTimer=setTimeout(doFlush, 1200);
+    return;
+  }
+  flushing=false;
+  if(flushPending) flushTimer=setTimeout(doFlush, 1200);  // réponses arrivées entre-temps
+}
+
 async function registerResult(ok, pts){
-  // anti-spam : respecte le cooldown des règles (1 s) ; sinon l'écriture serait refusée
-  if(ONLINE){ const now=Date.now(); if(quiz.lastWriteAt && now-quiz.lastWriteAt < 1100) return; quiz.lastWriteAt=now; }
   quiz.sessTotal++; if(ok) quiz.sessScore++;
-  if(isGuest() || !CU) return; // pas de persistance pour invités
+  if(isGuest() || !CU){ updateQuizScorebar(); return; }
   CU.attempts=(CU.attempts||0)+1;
   if(ok){ CU.correct=(CU.correct||0)+1; CU.totalPoints=(CU.totalPoints||0)+pts; CU.currentStreak=(CU.currentStreak||0)+1; CU.bestStreak=Math.max(CU.bestStreak||0, CU.currentStreak); }
   else { CU.currentStreak=0; }
@@ -366,8 +388,9 @@ async function registerResult(ok, pts){
   const c=CU.chapters[ch]||{points:0,attempts:0,correct:0};
   c.attempts++; if(ok){ c.correct++; c.points+=pts; }
   CU.chapters[ch]=c;
-  try{ await DB.setUser(CU.name, {attempts:CU.attempts,correct:CU.correct,totalPoints:CU.totalPoints,currentStreak:CU.currentStreak,bestStreak:CU.bestStreak,chapters:CU.chapters,lastWrite:nowStamp()}); }catch(e){ console.warn('save échoué',e); }
-  updateQuizScorebar();
+  updateQuizScorebar();                      // UI instantanée
+  if(ONLINE){ scheduleFlush(); }             // serveur en arrière-plan, avec réessai
+  else { try{ await DB.setUser(CU.name, snapshotCU()); }catch(e){} }  // mode local : direct
 }
 
 /* =====================================================================
