@@ -66,7 +66,7 @@ function buildLogin(){
   const root=$('#login');
   root.innerHTML='';
   root.append(
-    h('div',{class:'eyebrow'},'<span class="dot"></span> MP2I · TERMINAL DE KHÔLLE'),
+    h('div',{class:'eyebrow'},'<span class="dot"></span> MP2I · TERMINAL DE Maths'),
     h('h1',{class:'title'},'Connexion<span class="cur">_</span>')
   );
   const card=h('div',{class:'login-card'});
