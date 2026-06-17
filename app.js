@@ -43,8 +43,7 @@ function blankUser(name){
 async function seedIfNeeded(){
   const users=await DB.listUsers();
   if(users.length>0) return;
-  const hash=await sha256(DEFAULT_PASSWORD);
-  for(const name of STUDENTS){ const u=blankUser(name); u.passwordHash=hash; await DB.setUser(name,u); }
+  for(const name of STUDENTS){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; await DB.setUser(name,u); }
 }
 
 /* ---------- session ---------- */
@@ -91,7 +90,7 @@ function buildLogin(){
     btn.onclick=()=>loginStudent(sel.value, pw.value, err);
     pw.onkeydown=e=>{ if(e.key==='Enter') btn.click(); };
     body.append(h('label',{class:'field'},'Élève'),sel,h('label',{class:'field'},'Mot de passe'),pw,btn,err);
-    body.append(h('p',{class:'note'},'Mot de passe provisoire par défaut : <b>'+DEFAULT_PASSWORD+'</b> — change-le dans Paramètres.'));
+    body.append(h('p',{class:'note'},'Mot de passe oublié ? Demande à l\'admin de le réinitialiser.'));
   }
   function inviteForm(){
     body.innerHTML='';
@@ -100,8 +99,9 @@ function buildLogin(){
     const err=h('div',{class:'error'});
     const btn=h('button',{class:'btn btn-primary'},'Entrer en invité');
     btn.style.marginTop='16px'; btn.style.width='100%';
-    btn.onclick=()=>{
-      if((ans.value||'').trim().toLowerCase()===gq.a.toLowerCase()){
+    btn.onclick=async()=>{
+      const hash=await sha256((ans.value||'').trim().toLowerCase());
+      if(hash===gq.a){
         setSession({name:'Invité', isGuest:true, isAdmin:false}); enterApp();
       } else { err.textContent='Mauvaise réponse. Réservé aux MP2I.'; }
     };
@@ -516,19 +516,34 @@ function renderAdmin(){
   };
   c1.append(b1,m1); root.append(c1);
 
+  // reset des scores d'UNE personne
+  const cP=h('div',{class:'adm-card'});
+  cP.append(h('h3',{},'Réinitialiser les scores d\'un élève'));
+  const selP=h('select',{}); STUDENTS.forEach(n=>selP.append(h('option',{value:n},n)));
+  const mP=h('div',{class:'ok-msg'});
+  const bP=h('button',{class:'btn btn-danger'},'Réinitialiser ses scores'); bP.style.marginTop='10px';
+  bP.onclick=async()=>{
+    if(!confirm('Réinitialiser les scores de '+selP.value+' ?')) return;
+    await DB.setUser(selP.value,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{}});
+    if(CU&&CU.name===selP.value){ Object.assign(CU,{totalPoints:0,bestStreak:0,currentStreak:0,attempts:0,correct:0,chapters:{}}); }
+    mP.textContent='Scores de '+selP.value+' remis à zéro ✓';
+  };
+  cP.append(h('label',{class:'field'},'Élève'),selP,bP,mP); root.append(cP);
+
   // reset mot de passe individuel
   const c2=h('div',{class:'adm-card'});
   c2.append(h('h3',{},'Réinitialiser un mot de passe'));
   const sel=h('select',{}); STUDENTS.forEach(n=>sel.append(h('option',{value:n},n)));
-  const pwInput=h('input',{type:'text',placeholder:'Nouveau mot de passe provisoire (défaut : '+DEFAULT_PASSWORD+')'});
+  const pwInput=h('input',{type:'text',placeholder:'Laisse vide = mot de passe par défaut'});
   const m2=h('div',{class:'ok-msg'});
   const b2=h('button',{class:'btn btn-primary'},'Réinitialiser'); b2.style.marginTop='10px';
   b2.onclick=async()=>{
-    const pw=(pwInput.value||'').trim()||DEFAULT_PASSWORD;
-    const hash=await sha256(pw);
+    const pw=(pwInput.value||'').trim();
+    const hash = pw ? await sha256(pw) : DEFAULT_PASSWORD_HASH;
     await DB.setUser(sel.value,{passwordHash:hash,mustChangePassword:true});
     if(CU&&CU.name===sel.value){ CU.passwordHash=hash; CU.mustChangePassword=true; }
-    m2.textContent='Mot de passe de '+sel.value+' → « '+pw+' » ✓';
+    m2.textContent = pw ? ('Mot de passe de '+sel.value+' → « '+pw+' » ✓')
+                        : ('Mot de passe de '+sel.value+' remis au défaut ✓');
     pwInput.value='';
   };
   c2.append(h('div',{class:'row2'},''),h('label',{class:'field'},'Élève'),sel,h('label',{class:'field'},'Nouveau mot de passe'),pwInput,b2,m2);
@@ -537,13 +552,13 @@ function renderAdmin(){
   // (ré)initialiser les comptes manquants
   const c3=h('div',{class:'adm-card'});
   c3.append(h('h3',{},'Comptes'));
-  c3.append(h('p',{class:'note'},'Crée les comptes manquants (mot de passe « '+DEFAULT_PASSWORD+' ») sans toucher aux existants.'));
+  c3.append(h('p',{class:'note'},'Crée les comptes manquants (mot de passe par défaut) sans toucher aux existants.'));
   const b3=h('button',{class:'btn btn-ghost'},'Créer les comptes manquants');
   const m3=h('div',{class:'ok-msg'});
   b3.onclick=async()=>{
     const existing=new Set((await DB.listUsers()).map(u=>u.name));
-    const hash=await sha256(DEFAULT_PASSWORD); let n=0;
-    for(const name of STUDENTS){ if(!existing.has(name)){ const u=blankUser(name); u.passwordHash=hash; await DB.setUser(name,u); n++; } }
+    let n=0;
+    for(const name of STUDENTS){ if(!existing.has(name)){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; await DB.setUser(name,u); n++; } }
     m3.textContent=n+' compte(s) créé(s) ✓';
   };
   c3.append(b3,m3); root.append(c3);
