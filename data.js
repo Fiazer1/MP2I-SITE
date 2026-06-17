@@ -4,7 +4,7 @@
 
 /* --- Élèves (depuis Noms.txt) --- */
 const STUDENTS = [
-  "Ilias","Zineb","Lucas","ABL Adam","Antonin","Cali","BOI. Enzo","Augustin",
+  "Ilias","Zineb","Lucas","ABL. Adam","Antonin","Cali","BOI. Enzo","Augustin",
   "Yassine","Roman","Charles","Amaury","Hugo","Juan","Théa","Jules","Robin",
   "Louis","Nathan","Félix","Maxence","Alrick","Noémi","Enes","Asma","Rémi",
   "Jean","Gael","Ayo","Elouan","BAT. Enzo","BEN. Adam","Ahmed","Alexis","Gabriel"
