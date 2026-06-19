@@ -601,9 +601,33 @@ function renderAdmin(){
 }
 
 /* =====================================================================
+   RACCOURCI CLAVIER — Espace : Passer (si pas répondu) / Suivante (si répondu)
+   ===================================================================== */
+function bindQuizKeys(){
+  document.addEventListener('keydown', (e)=>{
+    if(e.code!=='Space' && e.key!==' ') return;
+    const ae=document.activeElement;
+    // ne pas gêner la saisie dans un champ
+    if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')) return;
+    // laisser la sélection d'une option au clavier (Espace sur un bouton-réponse focalisé)
+    if(ae && ae.classList && ae.classList.contains('opt')) return;
+    // seulement quand l'onglet Quiz est actif et qu'une question est affichée
+    const panel=document.getElementById('tab-quiz');
+    if(!panel || !panel.classList.contains('active')) return;
+    if(!document.getElementById('qcard')) return;
+    const nextBtn=document.getElementById('next'), skipBtn=document.getElementById('skip');
+    if(!nextBtn && !skipBtn) return;
+    e.preventDefault();
+    if(quiz.answered){ if(nextBtn && nextBtn.style.display!=='none') nextBtn.click(); }
+    else { if(skipBtn && skipBtn.style.display!=='none') skipBtn.click(); }
+  });
+}
+
+/* =====================================================================
    INIT
    ===================================================================== */
 window.addEventListener('DOMContentLoaded', async ()=>{
+  bindQuizKeys();
   try{ await seedIfNeeded(); }catch(e){ console.warn('seed',e); }
   const sess=getSession();
   if(sess){ if(sess.isGuest){ enterApp(); } else { const u=await DB.getUser(sess.name); if(u){ CU=u; enterApp(); } else { clearSession(); buildLogin(); } } }
