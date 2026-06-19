@@ -10,6 +10,12 @@ function h(tag, attrs={}, html){ const e=document.createElement(tag); for(const 
 function renderMath(el){ if(window.renderMathInElement) renderMathInElement(el,{delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false},{left:"\\(",right:"\\)",display:false},{left:"\\[",right:"\\]",display:true}],throwOnError:false}); }
 async function sha256(str){ const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(PASSWORD_SALT+str)); return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))|0; } return (h>>>0).toString(36); }
+
+/* ---------- favoris ---------- */
+// id stable par template (basé sur le code de gen, indépendant de l'ordre)
+try{ if(typeof TEMPLATES!=='undefined'){ TEMPLATES.forEach(t=>{ if(!t.id) t.id='tpl-'+hashStr((t.gen||function(){}).toString()); }); } }catch(e){}
+let FAVORITES=new Set();
 
 /* ---------- couche données : Firebase si configuré, sinon localStorage ---------- */
 const USE_FB = !!(typeof FIREBASE_CONFIG!=='undefined' && FIREBASE_CONFIG.apiKey);
@@ -151,6 +157,7 @@ async function enterApp(forcePw=false){
   }
   buildTopbar(sess);
   buildTabs(sess);
+  loadFavorites();
   showTab('cours');
   if(forcePw){ showTab('param'); $('#pw-hint') && ($('#pw-hint').textContent='⚠️ Change ton mot de passe provisoire.'); }
 }
@@ -254,8 +261,34 @@ const RANKED_SECONDS=300;
 function counting(mode){ return mode==='classe'||mode==='application'; }
 function poolFor(mode){
   if(mode==='application') return (typeof TEMPLATES!=='undefined' && TEMPLATES.length) ? TEMPLATES.slice() : QUESTIONS.filter(q=>q.mode==='application');
+  if(mode==='favoris') return favPool();
   return QUESTIONS.slice();
 }
+
+/* ---------- favoris : stockage + helpers ---------- */
+function loadFavorites(){
+  try{
+    if(isGuest()) FAVORITES=new Set(JSON.parse(localStorage.getItem('mp2i_fav_guest')||'[]'));
+    else if(CU) FAVORITES=new Set(CU.favorites||[]);
+    else FAVORITES=new Set();
+  }catch(e){ FAVORITES=new Set(); }
+}
+function saveFavorites(){
+  const arr=[...FAVORITES];
+  if(isGuest()){ try{ localStorage.setItem('mp2i_fav_guest', JSON.stringify(arr)); }catch(e){} return; }
+  if(CU){ CU.favorites=arr; try{ DB.setUser(CU.name,{favorites:arr}); }catch(e){} }
+}
+function favKeyOf(q){ return q.gen ? ('T|'+q.id) : ('Q|'+q.chap+'|'+q.t); }
+function favPool(){
+  const out=[];
+  for(const q of QUESTIONS){ if(FAVORITES.has('Q|'+q.chap+'|'+q.t)) out.push(q); }
+  if(typeof TEMPLATES!=='undefined') for(const t of TEMPLATES){ if(FAVORITES.has('T|'+t.id)) out.push(t); }
+  return out;
+}
+function currentFavKey(){ return quiz.current ? favKeyOf(quiz.current) : null; }
+function updateFavBtn(){ const b=$('#fav-btn'); if(!b) return; const k=currentFavKey(); b.classList.toggle('on', !!k && FAVORITES.has(k)); }
+function toggleFav(){ const k=currentFavKey(); if(!k) return; if(FAVORITES.has(k)) FAVORITES.delete(k); else FAVORITES.add(k); saveFavorites(); updateFavBtn(); }
+function showEmptyFav(){ const card=$('#qcard'); if(card) card.innerHTML='<p class="note">Aucune question en favori pour l\'instant. Pendant une question (Libre, Classé ou Application), clique sur l\'étoile ★ en haut à droite pour l\'ajouter ici.</p>'; }
 
 function renderQuizHome(){
   const root=$('#tab-quiz'); root.innerHTML='';
@@ -265,7 +298,8 @@ function renderQuizHome(){
   const modes=[
     {id:'libre', label:'Libre', desc:'Entraînement, sans chrono ni points'},
     {id:'classe',label:'Classé ⏱', desc:'Chrono 5 min · points à la vitesse · compte au classement'},
-    {id:'application',label:'Application ✍', desc:'Valeurs réelles, à poser sur feuille · compte au classement'}
+    {id:'application',label:'Application ✍', desc:'Valeurs réelles, à poser sur feuille · compte au classement'},
+    {id:'favoris',label:'Favoris ★', desc:'Revoir uniquement tes questions favorites'}
   ];
   modes.forEach(m=>{
     const b=h('button',{class:'btn '+(quiz.mode===m.id?'btn-primary':'btn-ghost')}, m.label);
@@ -294,10 +328,12 @@ function statBox(lab,val,cls){ return '<div class="stat"><div class="lab">'+lab+
 function startQuiz(mode){
   quiz.mode=mode; quiz.pool=poolFor(mode); quiz.sessScore=0; quiz.sessTotal=0; quiz.sinceApp=3;
   renderQuizHome(); // refresh boutons
+  if(mode==='favoris' && quiz.pool.length===0){ showEmptyFav(); return; }
   nextQuestion();
 }
 // En mode Classé : au plus 1 question d'application sur 4 (au moins 3 QCM entre deux), tirage aléatoire.
 function pickQuestion(){
+  if(quiz.mode==='favoris'){ const p=favPool(); return p[Math.floor(Math.random()*p.length)]; }
   if(quiz.mode==='classe'){
     const apps=quiz.pool.filter(q=>q.mode==='application');
     const qcms=quiz.pool.filter(q=>q.mode==='qcm');
@@ -312,16 +348,18 @@ function pickQuestion(){
 function stopTimer(){ if(quiz.timer){ clearInterval(quiz.timer); quiz.timer=null; } }
 function nextQuestion(){
   stopTimer(); quiz.answered=false;
+  if(quiz.mode==='favoris' && favPool().length===0){ showEmptyFav(); return; }
   quiz.current=pickQuestion();
   quiz.resolved = quiz.current.gen ? Object.assign({chap:quiz.current.chap, mode:quiz.current.mode}, quiz.current.gen()) : quiz.current;
   const q=quiz.resolved, keys=['A','B','C','D'], order=shuffle([0,1,2,3]);
   const card=$('#qcard');
   const isApp=q.mode==='application';
-  let timerHtml = counting(quiz.mode) ? '<span class="timer" id="qtimer">05:00</span>' : '<span>'+(quiz.mode==='libre'?'sans chrono':'')+'</span>';
+  let timerHtml = counting(quiz.mode) ? '<span class="timer" id="qtimer">05:00</span>' : '<span>'+(quiz.mode==='libre'?'sans chrono':(quiz.mode==='favoris'?'favoris':''))+'</span>';
+  const star='<button class="fav-btn" id="fav-btn" title="Favori (★)" aria-label="Favori"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></button>';
   let opts='';
   order.forEach((oi,pos)=>{ opts+='<button class="opt" data-orig="'+oi+'"><span class="key">'+keys[pos]+'</span><span>'+q.o[oi]+'</span></button>'; });
   card.innerHTML=
-    '<div class="qmeta"><span class="badge'+(isApp?' app':'')+'">'+q.chap+(isApp?' · application':'')+'</span>'+timerHtml+'</div>'+
+    '<div class="qmeta"><span class="badge'+(isApp?' app':'')+'">'+q.chap+(isApp?' · application':'')+'</span><span class="qmeta-right">'+star+timerHtml+'</span></div>'+
     (isApp?'<div class="paper-note">✍ Pose le calcul sur feuille avant de répondre.</div>':'')+
     '<div class="qtext">'+q.t+'</div><div class="opts">'+opts+'</div>'+
     '<div class="explain" id="explain"><span class="verdict"></span><span id="exp-txt"></span></div>'+
@@ -329,6 +367,7 @@ function nextQuestion(){
   $$('#qcard .opt').forEach(b=> b.onclick=()=>answer(b));
   $('#skip').onclick=()=>{ if(counting(quiz.mode)&&!quiz.answered){ registerResult(false,0); } nextQuestion(); };
   $('#next').onclick=nextQuestion;
+  const fb=$('#fav-btn'); if(fb){ fb.onclick=toggleFav; updateFavBtn(); }
   renderMath(card);
   if(counting(quiz.mode)){ quiz.timeLeft=RANKED_SECONDS; tick(); quiz.timer=setInterval(tick,1000); }
 }
