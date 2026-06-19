@@ -124,6 +124,11 @@ th{background:var(--surface2);color:var(--cyan);font-family:ui-monospace,monospa
 .qmeta{font-family:ui-monospace,monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px}
 .qmeta .badge{color:var(--cyan)}
 .qmeta .badge.app{color:var(--gold)}
+.qmeta-right{display:flex;align-items:center;gap:12px}
+.fav-btn{background:none;border:none;cursor:pointer;padding:2px;line-height:0;color:var(--gold);display:inline-flex}
+.fav-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round;transition:transform .12s ease,fill .12s ease}
+.fav-btn:hover svg{transform:scale(1.18)}
+.fav-btn.on svg{fill:currentColor}
 .qtext{font-size:1.12rem;line-height:1.5;margin-bottom:18px}
 .paper-note{font-size:.82rem;color:var(--gold);margin-bottom:14px}
 .opts{display:flex;flex-direction:column;gap:10px}
