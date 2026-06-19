@@ -184,6 +184,13 @@ function buildTabs(sess){
   });
 }
 function showTab(id){
+  // Quitter une question en cours dans un mode comptabilisé (Classé / Application) = comme "Passer"
+  const onQuiz = $('#tab-quiz') && $('#tab-quiz').classList.contains('active');
+  if(onQuiz && id!=='quiz' && counting(quiz.mode) && quiz.current && !quiz.answered){
+    stopTimer();
+    registerResult(false, 0);          // série perdue, tentative comptée, 0 point
+    quiz.answered=true; quiz.current=null;
+  }
   $$('#tabs .tab').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===id)));
   $$('.panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+id));
   if(id==='cours') renderCours();
@@ -355,7 +362,7 @@ function nextQuestion(){
   const card=$('#qcard');
   const isApp=q.mode==='application';
   let timerHtml = counting(quiz.mode) ? '<span class="timer" id="qtimer">05:00</span>' : '<span>'+(quiz.mode==='libre'?'sans chrono':(quiz.mode==='favoris'?'favoris':''))+'</span>';
-  const star='<button class="fav-btn" id="fav-btn" title="Favori (★)" aria-label="Favori"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></button>';
+  const star='<button class="fav-btn" id="fav-btn" title="Favori (★)" aria-label="Favori"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></button>';
   let opts='';
   order.forEach((oi,pos)=>{ opts+='<button class="opt" data-orig="'+oi+'"><span class="key">'+keys[pos]+'</span><span>'+q.o[oi]+'</span></button>'; });
   card.innerHTML=
