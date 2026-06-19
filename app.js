@@ -292,14 +292,27 @@ function updateQuizScorebar(){
 function statBox(lab,val,cls){ return '<div class="stat"><div class="lab">'+lab+'</div><div class="val '+cls+'">'+val+'</div></div>'; }
 
 function startQuiz(mode){
-  quiz.mode=mode; quiz.pool=poolFor(mode); quiz.sessScore=0; quiz.sessTotal=0;
+  quiz.mode=mode; quiz.pool=poolFor(mode); quiz.sessScore=0; quiz.sessTotal=0; quiz.sinceApp=3;
   renderQuizHome(); // refresh boutons
   nextQuestion();
+}
+// En mode Classé : au plus 1 question d'application sur 4 (au moins 3 QCM entre deux), tirage aléatoire.
+function pickQuestion(){
+  if(quiz.mode==='classe'){
+    const apps=quiz.pool.filter(q=>q.mode==='application');
+    const qcms=quiz.pool.filter(q=>q.mode==='qcm');
+    let useApp = (quiz.sinceApp>=3 && apps.length && qcms.length) ? (Math.random()<0.5) : false;
+    if(!qcms.length) useApp = apps.length>0;
+    const arr = useApp ? apps : qcms;
+    quiz.sinceApp = useApp ? 0 : (quiz.sinceApp+1);
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+  return quiz.pool[Math.floor(Math.random()*quiz.pool.length)];
 }
 function stopTimer(){ if(quiz.timer){ clearInterval(quiz.timer); quiz.timer=null; } }
 function nextQuestion(){
   stopTimer(); quiz.answered=false;
-  quiz.current=quiz.pool[Math.floor(Math.random()*quiz.pool.length)];
+  quiz.current=pickQuestion();
   quiz.resolved = quiz.current.gen ? Object.assign({chap:quiz.current.chap, mode:quiz.current.mode}, quiz.current.gen()) : quiz.current;
   const q=quiz.resolved, keys=['A','B','C','D'], order=shuffle([0,1,2,3]);
   const card=$('#qcard');
