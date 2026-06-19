@@ -255,3 +255,98 @@ const TEMPLATES = [
                o:["$("+x+",\\,"+y+")$","$("+y+",\\,"+x+")$","$("+s+",\\,"+d+")$","$("+x+",\\,"+(-y)+")$"], c:0,
                e:"$x=\\frac{"+s+"+"+d+"}{2}="+x+",\\quad y=\\frac{"+s+"-"+d+"}{2}="+y+"$." }; } }
 ];
+
+/* =====================================================================
+   AJOUT S30 — banque étoffée (révision khôlle)
+   Strictement : Analyse 19 (Intégrale), Algèbre 15 (Matrices), Algèbre 16 (Systèmes)
+   ===================================================================== */
+QUESTIONS.push(
+ // ---------- ANALYSE 19 — QCM ----------
+ {chap:"Analyse 19",mode:"qcm",t:"Une fonction en escalier sur $[a;b]$ est :",o:["jamais cpm","toujours continue par morceaux","cpm seulement si continue","non bornée"],c:1,e:"Une fonction en escalier est un cas particulier de fonction cpm."},
+ {chap:"Analyse 19",mode:"qcm",t:"Une fonction continue par morceaux sur $[a;b]$ est :",o:["non bornée","bornée","forcément continue","forcément positive"],c:1,e:"Limites finies + nombre fini de morceaux $\\Rightarrow$ bornée."},
+ {chap:"Analyse 19",mode:"qcm",t:"L'intégrale d'une fonction en escalier dépend-elle de la subdivision adaptée ?",o:["oui","non","seulement si $a<b$","seulement si $f\\ge0$"],c:1,e:"Elle est indépendante de la subdivision adaptée choisie."},
+ {chap:"Analyse 19",mode:"qcm",t:"$\\int_a^b(\\lambda f+\\mu g)=$ ?",o:["$\\lambda\\int f+\\mu\\int g$","$\\lambda\\mu\\int f\\int g$","$\\int f+\\int g$","$\\lambda\\int f\\cdot\\mu\\int g$"],c:0,e:"Linéarité de l'intégrale."},
+ {chap:"Analyse 19",mode:"qcm",t:"Si $f\\le g$ sur $[a;b]$ ($a\\le b$), alors :",o:["$\\int f\\ge\\int g$","$\\int f\\le\\int g$","$\\int f=\\int g$","aucun lien"],c:1,e:"Croissance (positivité) de l'intégrale."},
+ {chap:"Analyse 19",mode:"qcm",t:"$f$ <b>cpm</b> et $\\ge0$ avec $\\int_a^b f=0$. Alors :",o:["$f=0$ partout","$f$ peut être $\\ne0$ en un nombre fini de points","$f<0$","impossible"],c:1,e:"Sans continuité, $f$ peut être non nulle en des points isolés."},
+ {chap:"Analyse 19",mode:"qcm",t:"$\\left|\\int_a^b f\\right|$ ($a\\le b$) est majoré par :",o:["$\\int_a^b|f|$","$|f(b)|$","$\\int_a^b f$","$0$"],c:0,e:"Inégalité triangulaire intégrale."},
+ {chap:"Analyse 19",mode:"qcm",t:"La valeur moyenne $\\mu$ de $f$ sur $[a;b]$ vérifie :",o:["$\\mu\\ge M$","$m\\le\\mu\\le M$","$\\mu=0$","$\\mu\\le m$"],c:1,e:"$\\mu$ est comprise entre le min $m$ et le max $M$."},
+ {chap:"Analyse 19",mode:"qcm",t:"$\\frac{b-a}n\\sum_{k=1}^{n}f\\!\\left(a+k\\frac{b-a}n\\right)\\to$ ?",o:["$f(b)$","$\\int_a^b f$","$\\mu$","$0$"],c:1,e:"Somme de Riemann (points à droite)."},
+ {chap:"Analyse 19",mode:"qcm",t:"Deux primitives d'une même fonction continue diffèrent :",o:["d'une fonction affine","d'une constante","d'un facteur","de rien"],c:1,e:"$F_1-F_2$ a une dérivée nulle sur un intervalle."},
+ {chap:"Analyse 19",mode:"qcm",t:"$f$ de classe $\\mathcal C^1$ : $\\int_a^b f'(t)\\,dt=$ ?",o:["$f(b)-f(a)$","$f'(b)-f'(a)$","$f(a)-f(b)$","$0$"],c:0,e:"Théorème fondamental appliqué à $f'$."},
+ {chap:"Analyse 19",mode:"qcm",t:"Pour $f$ à valeurs complexes : $\\overline{\\int_a^b f}=$ ?",o:["$\\int_a^b \\bar f$","$\\left|\\int f\\right|$","$-\\int f$","$\\int\\mathrm{Re}f$"],c:0,e:"La conjugaison passe sous l'intégrale."},
+ {chap:"Analyse 19",mode:"qcm",t:"Une fonction cpm sur $[a;b]$ a un nombre de discontinuités :",o:["infini","fini","nul","non dénombrable"],c:1,e:"Par définition : nombre fini de morceaux."},
+ {chap:"Analyse 19",mode:"qcm",t:"$\\int_a^a f=$ ?",o:["$f(a)$","$0$","$1$","indéfini"],c:1,e:"Bornes égales : intégrale nulle."},
+ {chap:"Analyse 19",mode:"qcm",t:"L'application $f\\mapsto\\int_a^b f$ sur $\\mathcal C([a;b])$ est :",o:["bilinéaire","une forme linéaire","quadratique","non linéaire"],c:1,e:"Linéaire et à valeurs scalaires : forme linéaire."},
+ {chap:"Analyse 19",mode:"qcm",t:"Formule de la moyenne ($f$ continue) : $\\exists c$ tel que $\\int_a^b f=f(c)(b-a)$ avec $c\\in$",o:["$\\{a,b\\}$","$[a;b]$","$\\mathbb R$","$\\varnothing$"],c:1,e:"$c$ existe dans $[a;b]$ par le TVI."},
+
+ // ---------- ANALYSE 19 — APPLICATION ----------
+ {chap:"Analyse 19",mode:"application",t:"Calcule $\\displaystyle\\int_0^3 x\\,dx$.",o:["$\\tfrac92$","$3$","$9$","$6$"],c:0,e:"$[\\tfrac{x^2}2]_0^3=\\tfrac92$."},
+ {chap:"Analyse 19",mode:"application",t:"Calcule $\\displaystyle\\int_0^2 (x^2+1)\\,dx$.",o:["$\\tfrac{14}3$","$\\tfrac83$","$\\tfrac{10}3$","$4$"],c:0,e:"$[\\tfrac{x^3}3+x]_0^2=\\tfrac83+2=\\tfrac{14}3$."},
+ {chap:"Analyse 19",mode:"application",t:"Calcule $\\displaystyle\\int_1^2 \\frac1{x^2}\\,dx$.",o:["$\\tfrac12$","$1$","$-\\tfrac12$","$\\tfrac32$"],c:0,e:"$[-\\tfrac1x]_1^2=-\\tfrac12+1=\\tfrac12$."},
+ {chap:"Analyse 19",mode:"application",t:"Calcule $\\displaystyle\\int_0^{\\pi/2} \\cos x\\,dx$.",o:["$1$","$0$","$\\tfrac\\pi2$","$2$"],c:0,e:"$[\\sin x]_0^{\\pi/2}=1$."},
+ {chap:"Analyse 19",mode:"application",t:"Valeur moyenne de $f(x)=x^2$ sur $[0;3]$ ?",o:["$3$","$9$","$6$","$1$"],c:0,e:"$\\tfrac13\\int_0^3 x^2=\\tfrac13\\cdot9=3$."},
+ {chap:"Analyse 19",mode:"application",t:"Calcule $\\displaystyle\\int_{-1}^1 x^3\\,dx$.",o:["$0$","$\\tfrac12$","$2$","$1$"],c:0,e:"Fonction impaire sur intervalle symétrique : $0$."},
+ {chap:"Analyse 19",mode:"application",t:"Calcule $\\displaystyle\\int_0^1 e^x\\,dx$.",o:["$e-1$","$e$","$1$","$e+1$"],c:0,e:"$[e^x]_0^1=e-1$."},
+
+ // ---------- ALGÈBRE 15 — QCM ----------
+ {chap:"Algèbre 15",mode:"qcm",t:"Les colonnes de $P_{\\beta,\\beta'}$ sont :",o:["les coords des vecteurs de $\\beta'$ dans $\\beta$","les coords de $\\beta$ dans $\\beta'$","les valeurs propres","nulles"],c:0,e:"Colonne $j$ = coordonnées de $e'_j$ dans l'ancienne base."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Changement de base pour un vecteur : $X=$ ?",o:["$P X'$","$P^{-1}X'$","$\\,{}^tP X'$","$X'$"],c:0,e:"$X$ (anciennes coords) $=P X'$ (nouvelles)."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Application linéaire, nouvelles bases : $M'=$ ?",o:["$Q^{-1}MP$","$P^{-1}MP$","$QMP$","$\\,{}^tM$"],c:0,e:"$M'=Q^{-1}MP$ (bases différentes au départ/arrivée)."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Deux matrices semblables sont :",o:["jamais équivalentes","toujours équivalentes","de rangs différents","de traces différentes"],c:1,e:"Semblables $\\Rightarrow$ équivalentes (réciproque fausse)."},
+ {chap:"Algèbre 15",mode:"qcm",t:"$\\mathrm{rg}(M)$ est égal à :",o:["$\\dim\\ker f$","$\\dim\\mathrm{Im}f$","$\\mathrm{tr}(M)$","$n$"],c:1,e:"Rang = dimension de l'image (espace des colonnes)."},
+ {chap:"Algèbre 15",mode:"qcm",t:"$M\\sim J_r$ où $r=$ ?",o:["$\\mathrm{tr}(M)$","$\\mathrm{rg}(M)$","$n$","$\\det M$"],c:1,e:"Toute matrice de rang $r$ est équivalente à $J_r$."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Une opération sur les <b>lignes</b> = multiplier :",o:["à droite par inversible","à gauche par inversible","par un scalaire","par $\\,{}^tM$"],c:1,e:"Lignes $\\leftrightarrow$ multiplication à gauche."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Si $A\\in GL_n$, alors $\\mathrm{rg}(BA)=$ ?",o:["$n$","$\\mathrm{rg}(B)$","$\\mathrm{rg}(A)$","$0$"],c:1,e:"Multiplier par une inversible conserve le rang."},
+ {chap:"Algèbre 15",mode:"qcm",t:"$\\mathrm{tr}(AB)=$ ?",o:["$\\mathrm{tr}(A)\\mathrm{tr}(B)$","$\\mathrm{tr}(BA)$","$0$","$\\mathrm{tr}(A)+\\mathrm{tr}(B)$"],c:1,e:"Propriété fondamentale : $\\mathrm{tr}(AB)=\\mathrm{tr}(BA)$."},
+ {chap:"Algèbre 15",mode:"qcm",t:"$\\mathrm{tr}(P^{-1}MP)=$ ?",o:["$\\mathrm{tr}(M)$","$\\mathrm{tr}(P)$","$0$","$\\det M$"],c:0,e:"La trace est un invariant de similitude."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Le rang d'une matrice échelonnée est :",o:["le nombre de colonnes","le nombre de lignes (pivots) non nulles","la trace","$n$"],c:1,e:"Rang = nombre de pivots."},
+ {chap:"Algèbre 15",mode:"qcm",t:"Le seul invariant complet de l'<b>équivalence</b> est :",o:["la trace","le rang","le déterminant","la première colonne"],c:1,e:"$M\\sim M'\\iff\\mathrm{rg}=\\mathrm{rg}'$."},
+
+ // ---------- ALGÈBRE 15 — APPLICATION ----------
+ {chap:"Algèbre 15",mode:"application",t:"Rang de $\\begin{pmatrix}2&4\\\\1&2\\end{pmatrix}$ ?",o:["$1$","$2$","$0$","$3$"],c:0,e:"$L_1=2L_2$ : rang $1$."},
+ {chap:"Algèbre 15",mode:"application",t:"Rang de $\\begin{pmatrix}1&2&3\\\\0&1&4\\\\0&0&5\\end{pmatrix}$ ?",o:["$3$","$2$","$1$","$0$"],c:0,e:"Triangulaire, diagonale non nulle : rang $3$."},
+ {chap:"Algèbre 15",mode:"application",t:"Rang de $\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$ ?",o:["$2$","$1$","$0$","$3$"],c:0,e:"$\\det=4-6=-2\\ne0$ : rang $2$."},
+ {chap:"Algèbre 15",mode:"application",t:"Trace de $\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$ ?",o:["$5$","$4$","$10$","$-2$"],c:0,e:"$\\mathrm{tr}=1+4=5$."},
+ {chap:"Algèbre 15",mode:"application",t:"Rang de $\\begin{pmatrix}0&0\\\\0&0\\end{pmatrix}$ ?",o:["$0$","$1$","$2$","indéfini"],c:0,e:"Matrice nulle : rang $0$."},
+
+ // ---------- ALGÈBRE 16 — QCM ----------
+ {chap:"Algèbre 16",mode:"qcm",t:"$MX=B$ admet une solution si et seulement si :",o:["$B\\in\\ker f$","$B\\in\\mathrm{Im}f$","$\\det M\\ne0$","$B=0$"],c:1,e:"Compatible $\\iff B$ est dans l'image."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Un système homogène $MX=0$ admet :",o:["jamais de solution","toujours la solution nulle","toujours une infinité","une seule non nulle"],c:1,e:"$X=0$ est toujours solution."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Système homogène à $n$ inconnues, rang $r$ : dimension des solutions =",o:["$r$","$n-r$","$n$","$0$"],c:1,e:"Théorème du rang : $\\dim\\ker f=n-r$."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Système carré $MX=B$ avec $M$ inversible : solution =",o:["$M^{-1}B$","$MB$","$\\,{}^tM B$","aucune"],c:0,e:"Unique : $X=M^{-1}B$."},
+ {chap:"Algèbre 16",mode:"qcm",t:"L'ensemble des solutions de $MX=B$ (non vide) est :",o:["$\\ker f$","un sous-espace affine de direction $\\ker f$","$\\mathrm{Im}f$","un singleton toujours"],c:1,e:"$x_p+\\ker f$."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Sur $\\mathbb R$, un système linéaire a :",o:["$0$, $1$ ou $2$ solutions","$0$, $1$ ou une infinité","toujours $1$","toujours une infinité"],c:1,e:"Jamais exactement deux solutions."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Le rang d'un système linéaire est :",o:["le nombre d'équations","le rang de la matrice $M$","le nombre d'inconnues","la trace"],c:1,e:"C'est $\\mathrm{rg}(M)$."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Système surjectif ($r=n$) : pour tout $B$ il y a :",o:["aucune solution","au moins une solution","exactement une","une infinité toujours"],c:1,e:"Surjectif : tout $B$ est atteint."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Système injectif ($r=p$) : la solution, si elle existe, est :",o:["multiple","unique","nulle","quelconque"],c:1,e:"Injectif : au plus une solution."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Si le système homogène associé a une solution non nulle, $MX=B$ a :",o:["toujours $1$ solution","$0$ ou une infinité","toujours $0$","exactement $2$"],c:1,e:"Le noyau non trivial $\\Rightarrow$ pas d'unicité."},
+
+ // ---------- ALGÈBRE 16 — APPLICATION ----------
+ {chap:"Algèbre 16",mode:"application",t:"Le système $\\begin{cases}x+y=3\\\\2x+2y=6\\end{cases}$ a :",o:["une infinité de solutions","une seule","aucune","exactement deux"],c:0,e:"Équations proportionnelles : droite de solutions."},
+ {chap:"Algèbre 16",mode:"application",t:"Le système $\\begin{cases}x+y=1\\\\x+y=2\\end{cases}$ a :",o:["aucune solution","une seule","une infinité","deux"],c:0,e:"Contradiction : incompatible."},
+ {chap:"Algèbre 16",mode:"application",t:"Solution de $\\begin{cases}2x+y=5\\\\x-y=1\\end{cases}$ ?",o:["$(2,1)$","$(1,2)$","$(3,-1)$","$(2,2)$"],c:0,e:"Somme : $3x=6\\Rightarrow x=2,\\ y=1$."},
+ {chap:"Algèbre 16",mode:"application",t:"Dimension de l'espace des solutions de $x+y+z=0$ ?",o:["$2$","$1$","$3$","$0$"],c:0,e:"$3$ inconnues, rang $1$ : $\\dim=3-1=2$."}
+);
+
+TEMPLATES.push(
+  { chap:"Analyse 19", mode:"application", gen(){
+      const b=[3,5][rint(0,1)], a=rint(1,5), r=a*(b*b-1)/2;
+      const {o,c}=pad4(r,[a*(b*b-1), a*b, r+a]);
+      return { t:"Calcule $\\displaystyle\\int_1^"+b+" "+a+"x\\,dx$.", o, c,
+               e:"$\\left["+a+"\\tfrac{x^2}{2}\\right]_1^"+b+"="+a+"\\cdot\\tfrac{"+(b*b)+"-1}{2}="+r+"$." }; } },
+
+  { chap:"Analyse 19", mode:"application", gen(){
+      const b=[2,4][rint(0,1)], a=rint(1,4), cc=rint(1,4), r=a*b*b/2 + cc*b;
+      const {o,c}=pad4(r,[a*b*b+cc*b, a*b*b/2, r+cc]);
+      return { t:"Calcule $\\displaystyle\\int_0^"+b+" ("+a+"x+"+cc+")\\,dx$.", o, c,
+               e:"$\\left["+a+"\\tfrac{x^2}{2}+"+cc+"x\\right]_0^"+b+"="+(a*b*b/2)+"+"+(cc*b)+"="+r+"$." }; } },
+
+  { chap:"Algèbre 15", mode:"application", gen(){
+      let a,b,cc,d,rank;
+      if(rint(0,1)===0){ a=rint(1,3); b=rint(1,3); const k=rint(2,3); cc=k*a; d=k*b; rank=1; }
+      else { do{ a=rint(1,3); b=rint(0,3); cc=rint(0,3); d=rint(1,3); }while(a*d-b*cc===0); rank=2; }
+      return { t:"Rang de $\\begin{pmatrix}"+a+"&"+b+"\\\\"+cc+"&"+d+"\\end{pmatrix}$ ?",
+               o:["$1$","$2$","$0$","indéfini"], c: rank===1?0:1,
+               e: rank===1 ? "Lignes proportionnelles : rang $1$."
+                           : "$\\det="+a+"\\cdot"+d+"-"+b+"\\cdot"+cc+"="+(a*d-b*cc)+"\\ne0$ : rang $2$." }; } }
+);
