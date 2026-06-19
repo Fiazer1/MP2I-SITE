@@ -140,9 +140,9 @@ const COURSE_MODULES = [
     <table>
      <tr><th>Cas</th><th>$f$</th><th>Solutions</th></tr>
      <tr><td>$r=n=p$</td><td>bijective (Cramer)</td><td>unique</td></tr>
-     <tr><td>$r=n<p$</td><td>surjective</td><td>s.e.a. dim $p-n$</td></tr>
-     <tr><td>$r=p<n$</td><td>injective</td><td>$\\varnothing$ ou singleton</td></tr>
-     <tr><td>$r<p,r<n$</td><td>ni inj. ni surj.</td><td>$\\varnothing$ ou s.e.a. dim $p-r$</td></tr>
+     <tr><td>$r=n&lt;p$</td><td>surjective</td><td>s.e.a. dim $p-n$</td></tr>
+     <tr><td>$r=p&lt;n$</td><td>injective</td><td>$\\varnothing$ ou singleton</td></tr>
+     <tr><td>$r&lt;p,r&lt;n$</td><td>ni inj. ni surj.</td><td>$\\varnothing$ ou s.e.a. dim $p-r$</td></tr>
     </table>`}
   ]
  }
@@ -190,7 +190,7 @@ const QUESTIONS = [
  {chap:"Algèbre 15",mode:"qcm",t:"Invariant de similitude :",o:["rang seul","trace","1ère colonne","dim de départ"],c:1,e:"$A\\sim B\\Rightarrow\\mathrm{tr}A=\\mathrm{tr}B$."},
  {chap:"Algèbre 15",mode:"qcm",t:"Endomorphisme, changement de base :",o:["$M'=P^{-1}MP$","$M'=PMP^{-1}$","$M'=QMP^{-1}$","$M'=\\,{}^tM$"],c:0,e:"Même base départ/arrivée."},
  {chap:"Algèbre 15",mode:"qcm",t:"$P_{\\beta,\\beta'}=$ ?",o:["$P_{\\beta',\\beta}$","$(P_{\\beta',\\beta})^{-1}$","$\\,{}^tP_{\\beta',\\beta}$","$I_n$"],c:1,e:"Matrices de passage inverses l'une de l'autre."},
- {chap:"Algèbre 15",mode:"qcm",t:"$M\\in\\mathcal M_n(K)$ inversible ssi :",o:["$\\mathrm{tr}M\\ne0$","$\\mathrm{rg}(M)=n$","$M=\\,{}^tM$","$\\mathrm{rg}(M)<n$"],c:1,e:"Rang plein."},
+ {chap:"Algèbre 15",mode:"qcm",t:"$M\\in\\mathcal M_n(K)$ inversible ssi :",o:["$\\mathrm{tr}M\\ne0$","$\\mathrm{rg}(M)=n$","$M=\\,{}^tM$","$\\mathrm{rg}(M)&lt;n$"],c:1,e:"Rang plein."},
  // ---------- ALGÈBRE 15 — APPLICATION ----------
  {chap:"Algèbre 15",mode:"application",t:"Rang de $\\begin{pmatrix}1&2\\\\2&4\\end{pmatrix}$ ?",o:["$1$","$2$","$0$","$3$"],c:0,e:"Lignes proportionnelles : rang 1."},
  {chap:"Algèbre 15",mode:"application",t:"Rang de $\\begin{pmatrix}1&0&0\\\\0&1&0\\\\0&0&0\\end{pmatrix}$ ?",o:["$2$","$3$","$1$","$0$"],c:0,e:"Deux pivots non nuls."},
@@ -198,7 +198,7 @@ const QUESTIONS = [
  // ---------- ALGÈBRE 16 — QCM ----------
  {chap:"Algèbre 16",mode:"qcm",t:"$\\vec b\\in\\mathrm{Im}f$, $\\vec x_p$ solution. Ensemble des solutions :",o:["$\\ker f$","$\\{\\vec x_p\\}$","$\\vec x_p+\\ker f$","$\\mathrm{Im}f$"],c:2,e:"Sous-espace affine : particulière + homogène."},
  {chap:"Algèbre 16",mode:"qcm",t:"Système de Cramer ($r=n=p$) :",o:["aucune solution","une seule","une infinité","dépend de $\\vec b$"],c:1,e:"$f$ bijective : solution unique."},
- {chap:"Algèbre 16",mode:"qcm",t:"Si $r=n<p$ :",o:["vide","singleton","s.e.a. dim $p-n$","tout l'espace"],c:2,e:"$f$ surjective, $\\dim=p-n$."},
+ {chap:"Algèbre 16",mode:"qcm",t:"Si $r=n&lt;p$ :",o:["vide","singleton","s.e.a. dim $p-n$","tout l'espace"],c:2,e:"$f$ surjective, $\\dim=p-n$."},
  {chap:"Algèbre 16",mode:"qcm",t:"Système homogène $MX=0$ équivaut à :",o:["$X\\in\\mathrm{Im}f$","$X\\in\\ker f$","$X=0$","$\\det M=0$"],c:1,e:"Solutions = noyau."},
  // ---------- ALGÈBRE 16 — APPLICATION ----------
  {chap:"Algèbre 16",mode:"application",t:"Solution de $\\begin{cases}x+y=2\\\\x-y=0\\end{cases}$ ?",o:["$(1,1)$","$(2,0)$","$(0,2)$","$(1,-1)$"],c:0,e:"$x=y=1$."},
@@ -264,10 +264,10 @@ QUESTIONS.push(
  // ---------- ANALYSE 19 — QCM ----------
  {chap:"Analyse 19",mode:"qcm",t:"Une fonction en escalier sur $[a;b]$ est :",o:["jamais cpm","toujours continue par morceaux","cpm seulement si continue","non bornée"],c:1,e:"Une fonction en escalier est un cas particulier de fonction cpm."},
  {chap:"Analyse 19",mode:"qcm",t:"Une fonction continue par morceaux sur $[a;b]$ est :",o:["non bornée","bornée","forcément continue","forcément positive"],c:1,e:"Limites finies + nombre fini de morceaux $\\Rightarrow$ bornée."},
- {chap:"Analyse 19",mode:"qcm",t:"L'intégrale d'une fonction en escalier dépend-elle de la subdivision adaptée ?",o:["oui","non","seulement si $a<b$","seulement si $f\\ge0$"],c:1,e:"Elle est indépendante de la subdivision adaptée choisie."},
+ {chap:"Analyse 19",mode:"qcm",t:"L'intégrale d'une fonction en escalier dépend-elle de la subdivision adaptée ?",o:["oui","non","seulement si $a&lt;b$","seulement si $f\\ge0$"],c:1,e:"Elle est indépendante de la subdivision adaptée choisie."},
  {chap:"Analyse 19",mode:"qcm",t:"$\\int_a^b(\\lambda f+\\mu g)=$ ?",o:["$\\lambda\\int f+\\mu\\int g$","$\\lambda\\mu\\int f\\int g$","$\\int f+\\int g$","$\\lambda\\int f\\cdot\\mu\\int g$"],c:0,e:"Linéarité de l'intégrale."},
  {chap:"Analyse 19",mode:"qcm",t:"Si $f\\le g$ sur $[a;b]$ ($a\\le b$), alors :",o:["$\\int f\\ge\\int g$","$\\int f\\le\\int g$","$\\int f=\\int g$","aucun lien"],c:1,e:"Croissance (positivité) de l'intégrale."},
- {chap:"Analyse 19",mode:"qcm",t:"$f$ <b>cpm</b> et $\\ge0$ avec $\\int_a^b f=0$. Alors :",o:["$f=0$ partout","$f$ peut être $\\ne0$ en un nombre fini de points","$f<0$","impossible"],c:1,e:"Sans continuité, $f$ peut être non nulle en des points isolés."},
+ {chap:"Analyse 19",mode:"qcm",t:"$f$ <b>cpm</b> et $\\ge0$ avec $\\int_a^b f=0$. Alors :",o:["$f=0$ partout","$f$ peut être $\\ne0$ en un nombre fini de points","$f&lt;0$","impossible"],c:1,e:"Sans continuité, $f$ peut être non nulle en des points isolés."},
  {chap:"Analyse 19",mode:"qcm",t:"$\\left|\\int_a^b f\\right|$ ($a\\le b$) est majoré par :",o:["$\\int_a^b|f|$","$|f(b)|$","$\\int_a^b f$","$0$"],c:0,e:"Inégalité triangulaire intégrale."},
  {chap:"Analyse 19",mode:"qcm",t:"La valeur moyenne $\\mu$ de $f$ sur $[a;b]$ vérifie :",o:["$\\mu\\ge M$","$m\\le\\mu\\le M$","$\\mu=0$","$\\mu\\le m$"],c:1,e:"$\\mu$ est comprise entre le min $m$ et le max $M$."},
  {chap:"Analyse 19",mode:"qcm",t:"$\\frac{b-a}n\\sum_{k=1}^{n}f\\!\\left(a+k\\frac{b-a}n\\right)\\to$ ?",o:["$f(b)$","$\\int_a^b f$","$\\mu$","$0$"],c:1,e:"Somme de Riemann (points à droite)."},
