@@ -350,3 +350,12 @@ TEMPLATES.push(
                e: rank===1 ? "Lignes proportionnelles : rang $1$."
                            : "$\\det="+a+"\\cdot"+d+"-"+b+"\\cdot"+cc+"="+(a*d-b*cc)+"\\ne0$ : rang $2$." }; } }
 );
+
+/* =====================================================================
+   TAG SEMAINE — tout le contenu actuel relève de la khôlle S30.
+   Pour une AUTRE semaine, ajoute « week: <n> » directement sur l'item
+   concerné (question, template, ou section de cours) — le défaut ci-dessous
+   ne s'applique qu'aux items non tagués.
+   ===================================================================== */
+QUESTIONS.forEach(q=>{ if(q.week==null) q.week=30; });
+TEMPLATES.forEach(t=>{ if(t.week==null) t.week=30; });
