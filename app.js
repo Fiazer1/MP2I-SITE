@@ -17,6 +17,7 @@ function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeA
 try{ if(typeof TEMPLATES!=='undefined'){ TEMPLATES.forEach(t=>{ if(!t.id) t.id='tpl-'+hashStr((t.gen||function(){}).toString()); }); } }catch(e){}
 let FAVORITES=new Set();
 let chapFilterAll=true, chapFilterSet=new Set();   // filtre chapitres (Libre & Favoris)
+let filterOpen=false;
 
 /* ---------- couche données : Firebase si configuré, sinon localStorage ---------- */
 const USE_FB = !!(typeof FIREBASE_CONFIG!=='undefined' && FIREBASE_CONFIG.apiKey);
@@ -313,9 +314,16 @@ function availableChaps(){
 }
 function passFilter(chap){ return chapFilterAll || chapFilterSet.has(chap); }
 function favPoolActive(){ return favPool().filter(q=>passFilter(q.chap)); }
+function filterSummary(){
+  if(chapFilterAll) return 'Tout';
+  const a=[...chapFilterSet];
+  if(a.length===0) return 'Tout';
+  return a.length<=2 ? a.join(', ') : (a.length+' chapitres');
+}
 function refreshFilterChips(){
   const all=$('#flt-all'); if(all) all.setAttribute('aria-pressed', String(chapFilterAll));
   $$('.flt-chip').forEach(c=>{ const ch=c.dataset.chap; c.setAttribute('aria-pressed', String(!chapFilterAll && chapFilterSet.has(ch))); });
+  const sum=$('#flt-summary'); if(sum) sum.textContent=filterSummary();
 }
 function renderQuizHome(){
   const root=$('#tab-quiz'); root.innerHTML='';
@@ -337,13 +345,15 @@ function renderQuizHome(){
   intro.append(h('p',{class:'note'}, isGuest()?'Mode invité : tu peux jouer mais aucun point n\'est enregistré.':'Choisis un mode pour commencer.'));
   root.append(intro);
 
-  // Filtre par chapitre (s'applique à Libre & Favoris uniquement)
-  const fil=h('div');
-  fil.append(h('p',{class:'note'},'Chapitres à réviser <span style="opacity:.7">(modes Libre &amp; Favoris)</span> :'));
-  const frow=h('div',{class:'toggle-row'});
+  // Filtre par chapitre (Libre & Favoris) — repliable + scrollable
+  const box=h('div',{class:'filter-box'+(filterOpen?' open':'')});
+  const head=h('div',{class:'filter-head'});
+  head.innerHTML='<span>Chapitres <span style="opacity:.65">(Libre &amp; Favoris)</span> : <b id="flt-summary">'+filterSummary()+'</b></span><span class="caret">▸</span>';
+  head.onclick=()=>{ filterOpen=!filterOpen; box.classList.toggle('open', filterOpen); };
+  const body=h('div',{class:'filter-body',id:'flt-body'});
   const allChip=h('button',{class:'chip',id:'flt-all','aria-pressed':String(chapFilterAll)},'Tout');
   allChip.onclick=()=>{ chapFilterAll=true; chapFilterSet.clear(); refreshFilterChips(); };
-  frow.append(allChip);
+  body.append(allChip);
   availableChaps().forEach(ch=>{
     const on=!chapFilterAll && chapFilterSet.has(ch);
     const c=h('button',{class:'chip flt-chip','data-chap':ch,'aria-pressed':String(on)}, ch);
@@ -352,10 +362,10 @@ function renderQuizHome(){
       else { chapFilterSet.has(ch)?chapFilterSet.delete(ch):chapFilterSet.add(ch); if(chapFilterSet.size===0) chapFilterAll=true; }
       refreshFilterChips();
     };
-    frow.append(c);
+    body.append(c);
   });
-  fil.append(frow);
-  root.append(fil);
+  box.append(head, body);
+  root.append(box);
 
   const sb=h('div',{class:'scorebar',id:'quiz-scorebar'}); root.append(sb);
   const card=h('div',{class:'qcard',id:'qcard'}); root.append(card);
@@ -562,21 +572,27 @@ async function renderLeaderboard(){
     if(lbCrit==='reussite'){ return u.attempts?Math.round(100*u.correct/u.attempts)+'%':'—'; }
     return metric(u);
   };
-  users=users.filter(u=>!(lbCrit==='reussite'&&!u.attempts) || lbCrit!=='reussite' ? true : false);
+  const qualifies=(u)=> lbCrit==='reussite' ? (u.attempts>0) : (metric(u)>0);
+  users=users.filter(qualifies);
   users.sort((a,b)=>metric(b)-metric(a));
 
   const sess=getSession();
   // ligne « toi »
   if(sess && !sess.isGuest){
-    const rank=users.findIndex(u=>u.name===sess.name)+1;
-    const me=users.find(u=>u.name===sess.name);
+    const idx=users.findIndex(u=>u.name===sess.name);
+    const me=idx>=0?users[idx]:null;
     const yr=h('div',{class:'you-row'});
-    yr.innerHTML='<span class="lbl">Toi · '+sess.name+' — '+fmt(me||{})+'</span><span class="rank">#'+(rank||'—')+'</span>';
+    if(me) yr.innerHTML='<span class="lbl">Toi · '+sess.name+' — '+fmt(me)+'</span><span class="rank">#'+(idx+1)+'</span>';
+    else   yr.innerHTML='<span class="lbl">Toi · '+sess.name+' — pas encore classé</span><span class="rank">—</span>';
     root.append(yr);
   } else {
     root.append(h('p',{class:'note'},'Mode invité : non classé.'));
   }
 
+  if(users.length===0){
+    root.append(h('p',{class:'note'},'Personne n\'a encore marqué de points pour ce critère.'));
+    return;
+  }
   const top=users.slice(0,10);
   const table=h('table',{class:'lb-table'});
   table.innerHTML='<tr><th>#</th><th>Élève</th><th style="text-align:right">'+sel.options[sel.selectedIndex].text+'</th></tr>';
