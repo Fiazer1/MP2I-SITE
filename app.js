@@ -346,6 +346,8 @@ function renderQuizHome(){
   root.append(intro);
 
   // Filtre par chapitre (Libre & Favoris) — repliable + scrollable
+  const showFilter = (quiz.mode==null || quiz.mode==='libre' || quiz.mode==='favoris');
+  if(showFilter){
   const box=h('div',{class:'filter-box'+(filterOpen?' open':'')});
   const head=h('div',{class:'filter-head'});
   head.innerHTML='<span>Chapitres <span style="opacity:.65">(Libre &amp; Favoris)</span> : <b id="flt-summary">'+filterSummary()+'</b></span><span class="caret">▸</span>';
@@ -366,6 +368,7 @@ function renderQuizHome(){
   });
   box.append(head, body);
   root.append(box);
+  }
 
   const sb=h('div',{class:'scorebar',id:'quiz-scorebar'}); root.append(sb);
   const card=h('div',{class:'qcard',id:'qcard'}); root.append(card);
