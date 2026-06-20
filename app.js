@@ -16,6 +16,7 @@ function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeA
 // id stable par template (basé sur le code de gen, indépendant de l'ordre)
 try{ if(typeof TEMPLATES!=='undefined'){ TEMPLATES.forEach(t=>{ if(!t.id) t.id='tpl-'+hashStr((t.gen||function(){}).toString()); }); } }catch(e){}
 let FAVORITES=new Set();
+let chapFilterAll=true, chapFilterSet=new Set();   // filtre chapitres (Libre & Favoris)
 
 /* ---------- couche données : Firebase si configuré, sinon localStorage ---------- */
 const USE_FB = !!(typeof FIREBASE_CONFIG!=='undefined' && FIREBASE_CONFIG.apiKey);
@@ -268,7 +269,8 @@ const RANKED_SECONDS=300;
 function counting(mode){ return mode==='classe'||mode==='application'; }
 function poolFor(mode){
   if(mode==='application') return (typeof TEMPLATES!=='undefined' && TEMPLATES.length) ? TEMPLATES.slice() : QUESTIONS.filter(q=>q.mode==='application');
-  if(mode==='favoris') return favPool();
+  if(mode==='favoris') return favPoolActive();
+  if(mode==='libre') return QUESTIONS.filter(q=>passFilter(q.chap));
   return QUESTIONS.slice();
 }
 
@@ -295,19 +297,38 @@ function favPool(){
 function currentFavKey(){ return quiz.current ? favKeyOf(quiz.current) : null; }
 function updateFavBtn(){ const b=$('#fav-btn'); if(!b) return; const k=currentFavKey(); b.classList.toggle('on', !!k && FAVORITES.has(k)); }
 function toggleFav(){ const k=currentFavKey(); if(!k) return; if(FAVORITES.has(k)) FAVORITES.delete(k); else FAVORITES.add(k); saveFavorites(); updateFavBtn(); }
-function showEmptyFav(){ const card=$('#qcard'); if(card) card.innerHTML='<p class="note">Aucune question en favori pour l\'instant. Pendant une question (Libre, Classé ou Application), clique sur l\'étoile ★ en haut à droite pour l\'ajouter ici.</p>'; }
+function showEmptyMsg(t){ const card=$('#qcard'); if(card) card.innerHTML='<p class="note">'+t+'</p>'; }
+function showEmptyFav(){
+  const txt = favPool().length===0
+    ? 'Aucune question en favori pour l\'instant. Pendant une question (Libre, Classé ou Application), clique sur l\'étoile ★ en haut à droite pour l\'ajouter ici.'
+    : 'Aucun favori dans les chapitres sélectionnés. Élargis le filtre ci-dessus (ex. « Tout »).';
+  showEmptyMsg(txt);
+}
 
+function availableChaps(){
+  const s=new Set();
+  for(const q of QUESTIONS) s.add(q.chap);
+  if(typeof TEMPLATES!=='undefined') for(const t of TEMPLATES) s.add(t.chap);
+  return [...s].sort();
+}
+function passFilter(chap){ return chapFilterAll || chapFilterSet.has(chap); }
+function favPoolActive(){ return favPool().filter(q=>passFilter(q.chap)); }
+function refreshFilterChips(){
+  const all=$('#flt-all'); if(all) all.setAttribute('aria-pressed', String(chapFilterAll));
+  $$('.flt-chip').forEach(c=>{ const ch=c.dataset.chap; c.setAttribute('aria-pressed', String(!chapFilterAll && chapFilterSet.has(ch))); });
+}
 function renderQuizHome(){
   const root=$('#tab-quiz'); root.innerHTML='';
   const intro=h('div');
   intro.append(h('div',{class:'mode-row'}));
   const row=$('.mode-row',intro);
-  const modes=[
+  let modes=[
     {id:'libre', label:'Libre', desc:'Entraînement, sans chrono ni points'},
     {id:'classe',label:'Classé ⏱', desc:'Chrono 5 min · points à la vitesse · compte au classement'},
     {id:'application',label:'Application ✍', desc:'Valeurs réelles, à poser sur feuille · compte au classement'},
     {id:'favoris',label:'Favoris ★', desc:'Revoir uniquement tes questions favorites'}
   ];
+  if(isGuest()) modes=modes.filter(m=>m.id!=='favoris');   // pas de favoris en invité
   modes.forEach(m=>{
     const b=h('button',{class:'btn '+(quiz.mode===m.id?'btn-primary':'btn-ghost')}, m.label);
     b.onclick=()=>{ startQuiz(m.id); };
@@ -315,6 +336,27 @@ function renderQuizHome(){
   });
   intro.append(h('p',{class:'note'}, isGuest()?'Mode invité : tu peux jouer mais aucun point n\'est enregistré.':'Choisis un mode pour commencer.'));
   root.append(intro);
+
+  // Filtre par chapitre (s'applique à Libre & Favoris uniquement)
+  const fil=h('div');
+  fil.append(h('p',{class:'note'},'Chapitres à réviser <span style="opacity:.7">(modes Libre &amp; Favoris)</span> :'));
+  const frow=h('div',{class:'toggle-row'});
+  const allChip=h('button',{class:'chip',id:'flt-all','aria-pressed':String(chapFilterAll)},'Tout');
+  allChip.onclick=()=>{ chapFilterAll=true; chapFilterSet.clear(); refreshFilterChips(); };
+  frow.append(allChip);
+  availableChaps().forEach(ch=>{
+    const on=!chapFilterAll && chapFilterSet.has(ch);
+    const c=h('button',{class:'chip flt-chip','data-chap':ch,'aria-pressed':String(on)}, ch);
+    c.onclick=()=>{
+      if(chapFilterAll){ chapFilterAll=false; chapFilterSet=new Set([ch]); }
+      else { chapFilterSet.has(ch)?chapFilterSet.delete(ch):chapFilterSet.add(ch); if(chapFilterSet.size===0) chapFilterAll=true; }
+      refreshFilterChips();
+    };
+    frow.append(c);
+  });
+  fil.append(frow);
+  root.append(fil);
+
   const sb=h('div',{class:'scorebar',id:'quiz-scorebar'}); root.append(sb);
   const card=h('div',{class:'qcard',id:'qcard'}); root.append(card);
   card.innerHTML='<p class="note">Sélectionne un mode ci-dessus pour lancer une question.</p>';
@@ -335,12 +377,12 @@ function statBox(lab,val,cls){ return '<div class="stat"><div class="lab">'+lab+
 function startQuiz(mode){
   quiz.mode=mode; quiz.pool=poolFor(mode); quiz.sessScore=0; quiz.sessTotal=0; quiz.sinceApp=3;
   renderQuizHome(); // refresh boutons
-  if(mode==='favoris' && quiz.pool.length===0){ showEmptyFav(); return; }
+  if(quiz.pool.length===0){ if(mode==='favoris') showEmptyFav(); else showEmptyMsg('Aucune question pour les chapitres sélectionnés.'); return; }
   nextQuestion();
 }
 // En mode Classé : au plus 1 question d'application sur 4 (au moins 3 QCM entre deux), tirage aléatoire.
 function pickQuestion(){
-  if(quiz.mode==='favoris'){ const p=favPool(); return p[Math.floor(Math.random()*p.length)]; }
+  if(quiz.mode==='favoris'){ const p=favPoolActive(); return p[Math.floor(Math.random()*p.length)]; }
   if(quiz.mode==='classe'){
     const apps=quiz.pool.filter(q=>q.mode==='application');
     const qcms=quiz.pool.filter(q=>q.mode==='qcm');
@@ -355,14 +397,14 @@ function pickQuestion(){
 function stopTimer(){ if(quiz.timer){ clearInterval(quiz.timer); quiz.timer=null; } }
 function nextQuestion(){
   stopTimer(); quiz.answered=false;
-  if(quiz.mode==='favoris' && favPool().length===0){ showEmptyFav(); return; }
+  if(quiz.mode==='favoris' && favPoolActive().length===0){ showEmptyFav(); return; }
   quiz.current=pickQuestion();
   quiz.resolved = quiz.current.gen ? Object.assign({chap:quiz.current.chap, mode:quiz.current.mode}, quiz.current.gen()) : quiz.current;
   const q=quiz.resolved, keys=['A','B','C','D'], order=shuffle([0,1,2,3]);
   const card=$('#qcard');
   const isApp=q.mode==='application';
   let timerHtml = counting(quiz.mode) ? '<span class="timer" id="qtimer">05:00</span>' : '<span>'+(quiz.mode==='libre'?'sans chrono':(quiz.mode==='favoris'?'favoris':''))+'</span>';
-  const star='<button class="fav-btn" id="fav-btn" title="Favori (★)" aria-label="Favori"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></button>';
+  const star = isGuest() ? '' : '<button class="fav-btn" id="fav-btn" title="Favori (★)" aria-label="Favori"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg></button>';
   let opts='';
   order.forEach((oi,pos)=>{ opts+='<button class="opt" data-orig="'+oi+'"><span class="key">'+keys[pos]+'</span><span>'+q.o[oi]+'</span></button>'; });
   card.innerHTML=
