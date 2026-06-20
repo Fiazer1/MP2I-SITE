@@ -16,8 +16,6 @@ function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeA
 // id stable par template (basé sur le code de gen, indépendant de l'ordre)
 try{ if(typeof TEMPLATES!=='undefined'){ TEMPLATES.forEach(t=>{ if(!t.id) t.id='tpl-'+hashStr((t.gen||function(){}).toString()); }); } }catch(e){}
 let FAVORITES=new Set();
-let chapFilterAll=true, chapFilterSet=new Set();   // filtre chapitres (Libre & Favoris)
-let filterOpen=false;
 
 /* ---------- couche données : Firebase si configuré, sinon localStorage ---------- */
 const USE_FB = !!(typeof FIREBASE_CONFIG!=='undefined' && FIREBASE_CONFIG.apiKey);
@@ -271,7 +269,7 @@ function counting(mode){ return mode==='classe'||mode==='application'; }
 function poolFor(mode){
   if(mode==='application') return (typeof TEMPLATES!=='undefined' && TEMPLATES.length) ? TEMPLATES.slice() : QUESTIONS.filter(q=>q.mode==='application');
   if(mode==='favoris') return favPoolActive();
-  if(mode==='libre') return QUESTIONS.filter(q=>passFilter(q.chap));
+  if(mode==='libre') return QUESTIONS.filter(q=>passFilter(q));
   return QUESTIONS.slice();
 }
 
@@ -302,7 +300,7 @@ function showEmptyMsg(t){ const card=$('#qcard'); if(card) card.innerHTML='<p cl
 function showEmptyFav(){
   const txt = favPool().length===0
     ? 'Aucune question en favori pour l\'instant. Pendant une question (Libre, Classé ou Application), clique sur l\'étoile ★ en haut à droite pour l\'ajouter ici.'
-    : 'Aucun favori dans les chapitres sélectionnés. Élargis le filtre ci-dessus (ex. « Tout »).';
+    : 'Aucun favori dans les filtres sélectionnés. Élargis (ex. « Tout ») ci-dessus.';
   showEmptyMsg(txt);
 }
 
@@ -312,18 +310,55 @@ function availableChaps(){
   if(typeof TEMPLATES!=='undefined') for(const t of TEMPLATES) s.add(t.chap);
   return [...s].sort();
 }
-function passFilter(chap){ return chapFilterAll || chapFilterSet.has(chap); }
-function favPoolActive(){ return favPool().filter(q=>passFilter(q.chap)); }
-function filterSummary(){
-  if(chapFilterAll) return 'Tout';
-  const a=[...chapFilterSet];
-  if(a.length===0) return 'Tout';
-  return a.length<=2 ? a.join(', ') : (a.length+' chapitres');
+function availableWeeks(){
+  const s=new Set();
+  for(const q of QUESTIONS) if(q.week!=null) s.add(q.week);
+  if(typeof TEMPLATES!=='undefined') for(const t of TEMPLATES) if(t.week!=null) s.add(t.week);
+  return [...s].sort((a,b)=>a-b);
 }
-function refreshFilterChips(){
-  const all=$('#flt-all'); if(all) all.setAttribute('aria-pressed', String(chapFilterAll));
-  $$('.flt-chip').forEach(c=>{ const ch=c.dataset.chap; c.setAttribute('aria-pressed', String(!chapFilterAll && chapFilterSet.has(ch))); });
-  const sum=$('#flt-summary'); if(sum) sum.textContent=filterSummary();
+// Deux filtres indépendants, combinés en ET. Valeurs stockées en chaînes.
+const FILTERS = {
+  chap:{ all:true, set:new Set(), open:false, label:'Chapitres', list:availableChaps, fmt:v=>v },
+  week:{ all:true, set:new Set(), open:false, label:'Semaines', list:availableWeeks, fmt:v=>'S'+String(v).padStart(2,'0') }
+};
+function matchOne(f,v){ return f.all || f.set.has(String(v)); }
+function passFilter(q){ return matchOne(FILTERS.chap, q.chap) && matchOne(FILTERS.week, q.week); }
+function favPoolActive(){ return favPool().filter(q=>passFilter(q)); }
+function filterSummary(key){
+  const f=FILTERS[key], a=[...f.set];
+  if(f.all || a.length===0) return 'Tout';
+  const labels=a.map(v=>f.fmt(v));
+  return labels.length<=2 ? labels.join(', ') : (labels.length+(key==='week'?' semaines':' chapitres'));
+}
+function refreshFilterChips(key){
+  const f=FILTERS[key];
+  const all=$('#flt-all-'+key); if(all) all.setAttribute('aria-pressed', String(f.all));
+  $$('.flt-chip-'+key).forEach(c=>{ const v=c.dataset.val; c.setAttribute('aria-pressed', String(!f.all && f.set.has(v))); });
+  const sum=$('#flt-summary-'+key); if(sum) sum.textContent=filterSummary(key);
+}
+function renderFilterBox(key, root){
+  const f=FILTERS[key], items=f.list();
+  if(items.length===0) return;
+  const box=h('div',{class:'filter-box'+(f.open?' open':'')});
+  const head=h('div',{class:'filter-head'});
+  head.innerHTML='<span>'+f.label+' <span style="opacity:.65">(Libre &amp; Favoris)</span> : <b id="flt-summary-'+key+'">'+filterSummary(key)+'</b></span><span class="caret">▸</span>';
+  head.onclick=()=>{ f.open=!f.open; box.classList.toggle('open', f.open); };
+  const body=h('div',{class:'filter-body'});
+  const allChip=h('button',{class:'chip',id:'flt-all-'+key,'aria-pressed':String(f.all)},'Tout');
+  allChip.onclick=()=>{ f.all=true; f.set.clear(); refreshFilterChips(key); };
+  body.append(allChip);
+  items.forEach(v=>{
+    const val=String(v), on=!f.all && f.set.has(val);
+    const c=h('button',{class:'chip flt-chip-'+key,'data-val':val,'aria-pressed':String(on)}, f.fmt(v));
+    c.onclick=()=>{
+      if(f.all){ f.all=false; f.set=new Set([val]); }
+      else { f.set.has(val)?f.set.delete(val):f.set.add(val); if(f.set.size===0) f.all=true; }
+      refreshFilterChips(key);
+    };
+    body.append(c);
+  });
+  box.append(head, body);
+  root.append(box);
 }
 function renderQuizHome(){
   const root=$('#tab-quiz'); root.innerHTML='';
@@ -345,29 +380,11 @@ function renderQuizHome(){
   intro.append(h('p',{class:'note'}, isGuest()?'Mode invité : tu peux jouer mais aucun point n\'est enregistré.':'Choisis un mode pour commencer.'));
   root.append(intro);
 
-  // Filtre par chapitre (Libre & Favoris) — repliable + scrollable
+  // Filtres (Libre & Favoris uniquement) — repliables + scrollables
   const showFilter = (quiz.mode==null || quiz.mode==='libre' || quiz.mode==='favoris');
   if(showFilter){
-  const box=h('div',{class:'filter-box'+(filterOpen?' open':'')});
-  const head=h('div',{class:'filter-head'});
-  head.innerHTML='<span>Chapitres <span style="opacity:.65">(Libre &amp; Favoris)</span> : <b id="flt-summary">'+filterSummary()+'</b></span><span class="caret">▸</span>';
-  head.onclick=()=>{ filterOpen=!filterOpen; box.classList.toggle('open', filterOpen); };
-  const body=h('div',{class:'filter-body',id:'flt-body'});
-  const allChip=h('button',{class:'chip',id:'flt-all','aria-pressed':String(chapFilterAll)},'Tout');
-  allChip.onclick=()=>{ chapFilterAll=true; chapFilterSet.clear(); refreshFilterChips(); };
-  body.append(allChip);
-  availableChaps().forEach(ch=>{
-    const on=!chapFilterAll && chapFilterSet.has(ch);
-    const c=h('button',{class:'chip flt-chip','data-chap':ch,'aria-pressed':String(on)}, ch);
-    c.onclick=()=>{
-      if(chapFilterAll){ chapFilterAll=false; chapFilterSet=new Set([ch]); }
-      else { chapFilterSet.has(ch)?chapFilterSet.delete(ch):chapFilterSet.add(ch); if(chapFilterSet.size===0) chapFilterAll=true; }
-      refreshFilterChips();
-    };
-    body.append(c);
-  });
-  box.append(head, body);
-  root.append(box);
+    renderFilterBox('chap', root);
+    renderFilterBox('week', root);
   }
 
   const sb=h('div',{class:'scorebar',id:'quiz-scorebar'}); root.append(sb);
@@ -390,7 +407,7 @@ function statBox(lab,val,cls){ return '<div class="stat"><div class="lab">'+lab+
 function startQuiz(mode){
   quiz.mode=mode; quiz.pool=poolFor(mode); quiz.sessScore=0; quiz.sessTotal=0; quiz.sinceApp=3;
   renderQuizHome(); // refresh boutons
-  if(quiz.pool.length===0){ if(mode==='favoris') showEmptyFav(); else showEmptyMsg('Aucune question pour les chapitres sélectionnés.'); return; }
+  if(quiz.pool.length===0){ if(mode==='favoris') showEmptyFav(); else showEmptyMsg('Aucune question pour les filtres sélectionnés.'); return; }
   nextQuestion();
 }
 // En mode Classé : au plus 1 question d'application sur 4 (au moins 3 QCM entre deux), tirage aléatoire.
