@@ -45,7 +45,30 @@ const DB = {
 
 function blankUser(name){
   return { passwordHash:null, mustChangePassword:true, isAdmin:(name===ADMIN_NAME),
-           totalPoints:0, bestStreak:0, currentStreak:0, attempts:0, correct:0, chapters:{} };
+           totalPoints:0, lifetimePoints:0, currency:0, weekStamp:'',
+           bestStreak:0, currentStreak:0, attempts:0, correct:0, chapters:{} };
+}
+// Identifiant de semaine ISO, ex. "2026-W35" (semaine commençant le lundi)
+function isoWeekId(d){
+  const t=new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day);
+  const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const w=Math.ceil((((t-y0)/86400000)+1)/7);
+  return t.getUTCFullYear()+'-W'+String(w).padStart(2,'0');
+}
+const CURRENCY_NAME='$MPI';   // MPI-dollars
+// Conversion hebdomadaire : les points de la semaine deviennent de la monnaie, puis repartent à 0.
+// Rejouer la conversion ne rapporte rien (les points valent alors 0) — vérifié aussi par les règles.
+async function maybeWeeklyConversion(){
+  if(!CU || isGuest()) return 0;
+  const now=isoWeekId(new Date());
+  if(!CU.weekStamp){ CU.weekStamp=now; try{ await DB.setUser(CU.name,{weekStamp:now}); }catch(e){} return 0; }
+  if(CU.weekStamp===now) return 0;
+  const gained=CU.totalPoints||0;
+  CU.currency=(CU.currency||0)+gained;
+  CU.totalPoints=0; CU.currentStreak=0; CU.weekStamp=now;
+  try{ await DB.setUser(CU.name,{currency:CU.currency, totalPoints:0, currentStreak:0, weekStamp:now, lastWrite:nowStamp()}); }catch(e){}
+  return gained;
 }
 async function seedIfNeeded(){
   const users=await DB.listUsers();
@@ -141,6 +164,7 @@ const TABS=[
   {id:'quiz',     label:'Quiz'},
   {id:'retro',    label:'Rétrospective'},
   {id:'classement',label:'Classement'},
+  {id:'boutique', label:'Boutique'},
   {id:'param',    label:'Paramètres'}
 ];
 async function enterApp(forcePw=false){
@@ -159,6 +183,12 @@ async function enterApp(forcePw=false){
   buildTabs(sess);
   loadFavorites();
   showTab('cours');
+  if(CU && !isGuest()){
+    maybeWeeklyConversion().then(g=>{
+      buildTopbar(getSession());
+      if(g>0) alert('Nouvelle semaine ! Tes '+g+' points ont été convertis en '+g+' '+CURRENCY_NAME+'.');
+    });
+  }
   if(forcePw){ showTab('param'); $('#pw-hint') && ($('#pw-hint').textContent='⚠️ Change ton mot de passe provisoire.'); }
 }
 function isGuest(){ const s=getSession(); return !!(s&&s.isGuest); }
@@ -168,7 +198,8 @@ function buildTopbar(sess){
   const tb=$('#topbar'); tb.innerHTML='';
   const who=h('div',{class:'whoami'});
   if(sess.isGuest){ who.innerHTML='Connecté en <b>Invité</b> <span class="badge-guest">sans points</span>'; }
-  else { who.innerHTML='Connecté : <b>'+sess.name+'</b>' + (sess.isAdmin?'<span class="badge-admin">ADMIN</span>':''); }
+  else { who.innerHTML='Connecté : <b>'+sess.name+'</b>' + (sess.isAdmin?'<span class="badge-admin">ADMIN</span>':'')
+          + (CU?' <span class="wallet">'+(CU.currency||0)+' '+CURRENCY_NAME+'</span>':''); }
   const out=h('button',{class:'btn btn-ghost'},'Déconnexion');
   out.onclick=()=>{ clearSession(); CU=null; stopTimer(); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); buildLogin(); };
   tb.append(who,out);
@@ -197,6 +228,7 @@ function showTab(id){
   if(id==='quiz') renderQuizHome();
   if(id==='retro') renderRetro();
   if(id==='classement') renderLeaderboard();
+  if(id==='boutique') renderShop();
   if(id==='param') renderParam();
   if(id==='admin') renderAdmin();
 }
@@ -400,7 +432,7 @@ function updateQuizScorebar(){
     statBox('Session', quiz.sessScore+' / '+quiz.sessTotal,'good')+
     statBox('Série', streak,'gold')+
     statBox('Réussite', rate==='—'?'—':rate+'%','cyan')+
-    (CU&&!isGuest()?statBox('Points totaux', CU.totalPoints||0,''):'');
+    (CU&&!isGuest()?statBox('Points (semaine)', CU.totalPoints||0,''):'');
 }
 function statBox(lab,val,cls){ return '<div class="stat"><div class="lab">'+lab+'</div><div class="val '+cls+'">'+val+'</div></div>'; }
 
@@ -486,7 +518,8 @@ function showExplain(ok, verdict, txt, pts){
   updateQuizScorebar();
 }
 function snapshotCU(){
-  return {attempts:CU.attempts, correct:CU.correct, totalPoints:CU.totalPoints,
+  return {attempts:CU.attempts, correct:CU.correct, totalPoints:CU.totalPoints, lifetimePoints:CU.lifetimePoints||0,
+          currency:CU.currency||0, weekStamp:CU.weekStamp||'',
           currentStreak:CU.currentStreak, bestStreak:CU.bestStreak, chapters:CU.chapters, lastWrite:nowStamp()};
 }
 // File d'attente : on tente d'écrire le snapshot courant ; si la règle refuse
@@ -513,7 +546,7 @@ async function registerResult(ok, pts){
   quiz.sessTotal++; if(ok) quiz.sessScore++;
   if(isGuest() || !CU){ updateQuizScorebar(); return; }
   CU.attempts=(CU.attempts||0)+1;
-  if(ok){ CU.correct=(CU.correct||0)+1; CU.totalPoints=(CU.totalPoints||0)+pts; CU.currentStreak=(CU.currentStreak||0)+1; CU.bestStreak=Math.max(CU.bestStreak||0, CU.currentStreak); }
+  if(ok){ CU.correct=(CU.correct||0)+1; CU.totalPoints=(CU.totalPoints||0)+pts; CU.lifetimePoints=(CU.lifetimePoints||0)+pts; CU.currentStreak=(CU.currentStreak||0)+1; CU.bestStreak=Math.max(CU.bestStreak||0, CU.currentStreak); }
   else { CU.currentStreak=0; }
   const ch=quiz.resolved.chap; CU.chapters=CU.chapters||{};
   const c=CU.chapters[ch]||{points:0,attempts:0,correct:0};
@@ -565,7 +598,7 @@ async function renderLeaderboard(){
   const root=$('#tab-classement'); root.innerHTML='';
   const ctrl=h('div',{class:'lb-controls'});
   const sel=h('select',{}); sel.style.maxWidth='220px';
-  [['points','Points totaux'],['streak','Meilleure série'],['reussite','% de réussite'],['chapitre','Par chapitre']].forEach(([v,l])=>{
+  [['points','Points (semaine)'],['lifetime','Points (all-time)'],['streak','Meilleure série'],['reussite','% de réussite'],['chapitre','Par chapitre']].forEach(([v,l])=>{
     const o=h('option',{value:v},l); if(v===lbCrit) o.selected=true; sel.append(o);
   });
   sel.onchange=()=>{ lbCrit=sel.value; renderLeaderboard(); };
@@ -583,6 +616,7 @@ async function renderLeaderboard(){
   let users=await DB.listUsers();
   const metric=(u)=>{
     if(lbCrit==='points') return u.totalPoints||0;
+    if(lbCrit==='lifetime') return u.lifetimePoints||0;
     if(lbCrit==='streak') return u.bestStreak||0;
     if(lbCrit==='reussite') return u.attempts?(u.correct/u.attempts):-1;
     if(lbCrit==='chapitre'){ const c=(u.chapters||{})[lbChap]; return c?c.points:0; }
@@ -618,12 +652,83 @@ async function renderLeaderboard(){
   table.innerHTML='<tr><th>#</th><th>Élève</th><th style="text-align:right">'+sel.options[sel.selectedIndex].text+'</th></tr>';
   top.forEach((u,i)=>{
     const tr=h('tr', sess&&u.name===sess.name?{class:'me'}:{});
-    tr.innerHTML='<td class="lb-rank r'+(i+1)+'">'+(i+1)+'</td><td>'+u.name+(u.isAdmin?' <span class="badge-admin">A</span>':'')+'</td><td class="lb-val">'+fmt(u)+'</td>';
+    const bItem = u.equippedBadge ? itemById(u.equippedBadge) : null;
+    const nItem = u.equippedBanner ? itemById(u.equippedBanner) : null;
+    const badgeHtml = bItem ? ' <span class="shop-badge sm" style="border-color:'+(RARITY[bItem.rarity]||{}).color+';color:'+(RARITY[bItem.rarity]||{}).color+'">'+bItem.name+'</span>' : '';
+    const nameCell = '<td>'+(nItem?'<span class="lb-banner" style="background:'+nItem.css+'"></span>':'')+u.name+(u.isAdmin?' <span class="badge-admin">A</span>':'')+badgeHtml+'</td>';
+    tr.innerHTML='<td class="lb-rank r'+(i+1)+'">'+(i+1)+'</td>'+nameCell+'<td class="lb-val">'+fmt(u)+'</td>';
     table.append(tr);
   });
   root.append(table);
 }
 
+/* =====================================================================
+   BOUTIQUE
+   ===================================================================== */
+function itemById(id){ return SHOP_ITEMS.find(i=>i.id===id); }
+function ownsItem(id){ return !!(CU && (CU.inventory||[]).includes(id)); }
+function priceOf(it){ return it.price!=null ? it.price : (RARITY[it.rarity]||{}).price || 0; }
+function itemChipHtml(it){
+  if(it.type==='badge') return '<span class="shop-badge" style="border-color:'+(RARITY[it.rarity]||{}).color+';color:'+(RARITY[it.rarity]||{}).color+'">'+it.name+'</span>';
+  return '<span class="shop-banner" style="background:'+it.css+'"></span>';
+}
+async function buyItem(it){
+  if(!CU || isGuest()) return;
+  const p=priceOf(it);
+  if(ownsItem(it.id)) return;
+  if((CU.currency||0) < p){ alert('Pas assez de '+CURRENCY_NAME+' : il te manque '+(p-(CU.currency||0))+'.'); return; }
+  if(!confirm('Acheter « '+it.name+' » pour '+p+' '+CURRENCY_NAME+' ?')) return;
+  CU.currency=(CU.currency||0)-p;
+  CU.inventory=[...(CU.inventory||[]), it.id];
+  try{ await DB.setUser(CU.name,{currency:CU.currency, inventory:CU.inventory}); }catch(e){ console.warn(e); }
+  buildTopbar(getSession()); renderShop();
+}
+async function equipItem(it){
+  if(!CU || isGuest() || !ownsItem(it.id)) return;
+  const key = it.type==='badge' ? 'equippedBadge' : 'equippedBanner';
+  CU[key] = (CU[key]===it.id) ? '' : it.id;   // reclic = déséquiper
+  try{ await DB.setUser(CU.name,{[key]:CU[key]}); }catch(e){ console.warn(e); }
+  renderShop();
+}
+function renderShop(){
+  const root=$('#tab-boutique'); root.innerHTML='';
+  root.append(h('h2',{class:'sec'},'Boutique'));
+  if(isGuest() || !CU){
+    root.append(h('div',{class:'locked-note'},'La boutique est réservée aux comptes élèves.'));
+    return;
+  }
+  root.append(h('p',{class:'note'},'Solde : <b>'+(CU.currency||0)+' '+CURRENCY_NAME+'</b> — tes points de la semaine deviennent des '+CURRENCY_NAME+' chaque lundi.'));
+
+  const wk=isoWeekId(new Date());
+  const {perm, rotating}=shopForWeek(wk, 4);
+
+  const section=(title, items, note)=>{
+    root.append(h('h3',{}, title));
+    if(note) root.append(h('p',{class:'note'}, note));
+    const grid=h('div',{class:'shop-grid'});
+    items.forEach(it=>{
+      const p=priceOf(it), owned=ownsItem(it.id);
+      const eqKey = it.type==='badge' ? 'equippedBadge' : 'equippedBanner';
+      const equipped = CU[eqKey]===it.id;
+      const card=h('div',{class:'shop-card'+(equipped?' equipped':'')});
+      card.innerHTML=
+        '<div class="shop-preview">'+itemChipHtml(it)+'</div>'+
+        '<div class="shop-name">'+it.name+'</div>'+
+        '<div class="shop-rarity" style="color:'+(RARITY[it.rarity]||{}).color+'">'+(RARITY[it.rarity]||{}).label+'</div>'+
+        '<div class="shop-desc">'+(it.desc||'')+'</div>';
+      const btn=h('button',{class:'btn '+(owned?(equipped?'btn-ghost':'btn-primary'):'btn-primary')},
+                  owned ? (equipped?'Retirer':'Équiper') : (p+' '+CURRENCY_NAME));
+      if(!owned && (CU.currency||0)<p) btn.classList.add('btn-ghost');
+      btn.onclick=()=> owned ? equipItem(it) : buyItem(it);
+      card.append(btn);
+      grid.append(card);
+    });
+    root.append(grid);
+  };
+
+  section('Cette semaine ('+wk+')', rotating, 'Rotation hebdomadaire — ces articles changent chaque lundi.');
+  section('Toujours disponibles', perm);
+}
 /* =====================================================================
    PARAMÈTRES
    ===================================================================== */
