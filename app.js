@@ -16,6 +16,7 @@ function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeA
 // id stable par template (basé sur le code de gen, indépendant de l'ordre)
 try{ if(typeof TEMPLATES!=='undefined'){ TEMPLATES.forEach(t=>{ if(!t.id) t.id='tpl-'+hashStr((t.gen||function(){}).toString()); }); } }catch(e){}
 let FAVORITES=new Set();
+let retroCompare='';
 
 /* ---------- couche données : Firebase si configuré, sinon localStorage ---------- */
 const USE_FB = !!(typeof FIREBASE_CONFIG!=='undefined' && FIREBASE_CONFIG.apiKey);
@@ -165,6 +166,7 @@ const TABS=[
   {id:'retro',    label:'Rétrospective'},
   {id:'classement',label:'Classement'},
   {id:'boutique', label:'Boutique'},
+  {id:'inventaire',label:'Inventaire'},
   {id:'param',    label:'Paramètres'}
 ];
 async function enterApp(forcePw=false){
@@ -229,6 +231,7 @@ function showTab(id){
   if(id==='retro') renderRetro();
   if(id==='classement') renderLeaderboard();
   if(id==='boutique') renderShop();
+  if(id==='inventaire') renderInventory();
   if(id==='param') renderParam();
   if(id==='admin') renderAdmin();
 }
@@ -560,34 +563,86 @@ async function registerResult(ok, pts){
 /* =====================================================================
    RÉTROSPECTIVE
    ===================================================================== */
-function renderRetro(){
+function profileCardHtml(u){
+  const bd=u.equippedBadge?itemById(u.equippedBadge):null;
+  const bn=u.equippedBanner?itemById(u.equippedBanner):null;
+  const badge=bd?' <span class="shop-badge sm" style="border-color:'+(RARITY[bd.rarity]||{}).color+';color:'+(RARITY[bd.rarity]||{}).color+'">'+bd.name+'</span>':'';
+  const rate=u.attempts?Math.round(100*u.correct/u.attempts):0;
+  return '<div class="profile-card" style="background:'+(bn?bannerCss(bn):'var(--surface)')+'">'
+       + '<div class="profile-head">'+avatarHtml(u,56)
+       + '<div><div class="profile-name">'+u.name+(u.isAdmin?' <span class="badge-admin">A</span>':'')+badge+'</div>'
+       + '<div class="profile-sub">'+(u.lifetimePoints||0)+' pts all-time · '+rate+'% de réussite</div></div></div></div>';
+}
+// Métriques comparables
+const RETRO_METRICS=[
+  {key:'week',   label:'Points (semaine)', get:u=>u.totalPoints||0},
+  {key:'life',   label:'Points (all-time)',get:u=>u.lifetimePoints||0},
+  {key:'assidu', label:'Assiduité (questions)', get:u=>u.attempts||0},
+  {key:'correct',label:'Bonnes réponses', get:u=>u.correct||0},
+  {key:'rate',   label:'Réussite (%)',    get:u=>u.attempts?Math.round(100*u.correct/u.attempts):0},
+  {key:'streak', label:'Meilleure série', get:u=>u.bestStreak||0},
+  {key:'money',  label:CURRENCY_NAME,     get:u=>u.currency||0}
+];
+function compareChart(a,b){
+  // barres groupées : chaque métrique normalisée par le max des deux
+  const rows=RETRO_METRICS.map(m=>{
+    const va=m.get(a), vb=b?m.get(b):0, mx=Math.max(va,vb,1);
+    const wa=Math.round(100*va/mx), wb=Math.round(100*vb/mx);
+    return '<div class="cmp-row"><div class="cmp-lab">'+m.label+'</div>'
+      +'<div class="cmp-bars">'
+      +'<div class="cmp-line"><div class="cmp-fill a" style="width:'+wa+'%"></div><span class="cmp-val">'+va+'</span></div>'
+      +(b?'<div class="cmp-line"><div class="cmp-fill b" style="width:'+wb+'%"></div><span class="cmp-val">'+vb+'</span></div>':'')
+      +'</div></div>';
+  }).join('');
+  return '<div class="cmp-chart">'+rows+'</div>';
+}
+async function renderRetro(){
   const root=$('#tab-retro'); root.innerHTML='';
   if(isGuest()||!CU){ root.append(h('div',{class:'locked-note'},'La rétrospective n\'est dispo que pour les comptes élèves. Connecte-toi pour suivre ta progression.')); return; }
-  const rate=CU.attempts?Math.round(100*CU.correct/CU.attempts):0;
-  const grid=h('div',{class:'retro-grid'});
-  grid.innerHTML=
-    statBox('Points totaux', CU.totalPoints||0,'good')+
-    statBox('Meilleure série', CU.bestStreak||0,'gold')+
-    statBox('Réussite globale', rate+'%','cyan')+
-    statBox('Questions faites', CU.attempts||0,'');
-  root.append(h('h2',{class:'sec'},'Ta progression'),grid);
+  root.append(h('h2',{class:'sec'},'Rétrospective'));
+
+  // --- sélecteur de comparaison ---
+  const bar=h('div',{class:'lb-controls'});
+  bar.append(h('span',{class:'note',style:'margin:0'},'Se comparer à :'));
+  const sel=h('select',{}); sel.style.maxWidth='220px';
+  sel.append(h('option',{value:''},'— personne —'));
+  STUDENTS.filter(n=>n!==CU.name).forEach(n=> sel.append(h('option',{value:n},n)));
+  if(retroCompare) sel.value=retroCompare;
+  sel.onchange=()=>{ retroCompare=sel.value; renderRetro(); };
+  bar.append(sel);
+  root.append(bar);
+
+  let other=null;
+  if(retroCompare){ try{ other=await DB.getUser(retroCompare); }catch(e){} }
+
+  // --- cartes profil ---
+  const cards=h('div',{class:'profile-grid'});
+  cards.innerHTML=profileCardHtml(CU)+(other?profileCardHtml(other):'');
+  root.append(cards);
+
+  // --- graphe comparatif ---
+  const box=h('div',{class:'card'});
+  box.innerHTML='<h3 style="margin-top:0">Comparaison</h3>'
+    +'<div class="cmp-legend"><span><i class="dot a"></i>'+CU.name+'</span>'+(other?'<span><i class="dot b"></i>'+other.name+'</span>':'')+'</div>'
+    +compareChart(CU, other);
+  root.append(box);
+
+  // --- stats perso par chapitre ---
   const chs=Object.entries(CU.chapters||{}).filter(([k,v])=>v.attempts>0);
-  if(!chs.length){ root.append(h('p',{class:'note'},'Joue quelques questions en mode Classé ou Application pour voir tes stats par chapitre.')); return; }
-  root.append(h('h3',{},'Réussite par chapitre'));
-  chs.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([k,v])=>{
-    const pct=Math.round(100*v.correct/v.attempts);
-    const row=h('div',{class:'bar-row'});
-    row.innerHTML='<span class="name">'+k+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="pct">'+pct+'%</span>';
-    root.append(row);
-  });
-  root.append(h('h3',{},'Points par chapitre'));
-  const maxP=Math.max(1,...chs.map(([k,v])=>v.points||0));
-  chs.forEach(([k,v])=>{
-    const w=Math.round(100*(v.points||0)/maxP);
-    const row=h('div',{class:'bar-row'});
-    row.innerHTML='<span class="name">'+k+'</span><div class="bar-track"><div class="bar-fill" style="width:'+w+'%"></div></div><span class="pct">'+(v.points||0)+'</span>';
-    root.append(row);
-  });
+  if(chs.length){
+    root.append(h('h3',{},'Ta réussite par chapitre'));
+    chs.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([k,v])=>{
+      const pct=Math.round(100*v.correct/v.attempts);
+      const o=other&&other.chapters&&other.chapters[k];
+      const opct=o&&o.attempts?Math.round(100*o.correct/o.attempts):null;
+      const row=h('div',{class:'bar-row'});
+      row.innerHTML='<span class="name">'+k+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="pct">'+pct+'%'
+        +(opct!=null?' <span style="color:var(--muted)">vs '+opct+'%</span>':'')+'</span>';
+      root.append(row);
+    });
+  } else {
+    root.append(h('p',{class:'note'},'Joue quelques questions en mode Classé ou Application pour voir tes stats par chapitre.'));
+  }
 }
 
 /* =====================================================================
@@ -655,7 +710,8 @@ async function renderLeaderboard(){
     const bItem = u.equippedBadge ? itemById(u.equippedBadge) : null;
     const nItem = u.equippedBanner ? itemById(u.equippedBanner) : null;
     const badgeHtml = bItem ? ' <span class="shop-badge sm" style="border-color:'+(RARITY[bItem.rarity]||{}).color+';color:'+(RARITY[bItem.rarity]||{}).color+'">'+bItem.name+'</span>' : '';
-    const nameCell = '<td>'+(nItem?'<span class="lb-banner" style="background:'+nItem.css+'"></span>':'')+u.name+(u.isAdmin?' <span class="badge-admin">A</span>':'')+badgeHtml+'</td>';
+    if(nItem){ tr.classList.add('has-banner'); tr.style.background=bannerCss(nItem); }
+    const nameCell = '<td>'+avatarHtml(u,22)+u.name+(u.isAdmin?' <span class="badge-admin">A</span>':'')+badgeHtml+'</td>';
     tr.innerHTML='<td class="lb-rank r'+(i+1)+'">'+(i+1)+'</td>'+nameCell+'<td class="lb-val">'+fmt(u)+'</td>';
     table.append(tr);
   });
@@ -670,7 +726,7 @@ function ownsItem(id){ return !!(CU && (CU.inventory||[]).includes(id)); }
 function priceOf(it){ return it.price!=null ? it.price : (RARITY[it.rarity]||{}).price || 0; }
 function itemChipHtml(it){
   if(it.type==='badge') return '<span class="shop-badge" style="border-color:'+(RARITY[it.rarity]||{}).color+';color:'+(RARITY[it.rarity]||{}).color+'">'+it.name+'</span>';
-  return '<span class="shop-banner" style="background:'+it.css+'"></span>';
+  return '<span class="shop-banner" style="background:'+bannerCss(it)+'"></span>';
 }
 async function buyItem(it){
   if(!CU || isGuest()) return;
@@ -729,6 +785,63 @@ function renderShop(){
   section('Cette semaine ('+wk+')', rotating, 'Rotation hebdomadaire — ces articles changent chaque lundi.');
   section('Toujours disponibles', perm);
 }
+/* ---------- avatar (photo de profil par URL) ---------- */
+function safeAvatarUrl(u){
+  const s=(u&&u.avatar)||'';
+  return /^https:\/\/\S+$/i.test(s) ? s : '';
+}
+function avatarHtml(u, size){
+  size=size||22;
+  const url=safeAvatarUrl(u);
+  const initial=(u&&u.name?u.name.trim()[0]:'?').toUpperCase();
+  if(url) return '<img class="avatar" style="width:'+size+'px;height:'+size+'px" src="'+url.replace(/"/g,'&quot;')+'" alt="" onerror="this.style.display=\'none\'">';
+  return '<span class="avatar avatar-ph" style="width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*0.45)+'px">'+initial+'</span>';
+}
+
+/* =====================================================================
+   INVENTAIRE
+   ===================================================================== */
+function renderInventory(){
+  const root=$('#tab-inventaire'); root.innerHTML='';
+  root.append(h('h2',{class:'sec'},'Inventaire'));
+  if(isGuest() || !CU){ root.append(h('div',{class:'locked-note'},'L\'inventaire est réservé aux comptes élèves.')); return; }
+  const owned=(CU.inventory||[]).map(itemById).filter(Boolean);
+  const tot=SHOP_ITEMS.length;
+  root.append(h('p',{class:'note'},'Tu possèdes <b>'+owned.length+'</b> article(s) sur '+tot+'. Solde : <b>'+(CU.currency||0)+' '+CURRENCY_NAME+'</b>'));
+  if(owned.length===0){ root.append(h('div',{class:'locked-note'},'Ton inventaire est vide. Va faire un tour à la Boutique !')); return; }
+
+  // aperçu du rendu actuel
+  const bn=CU.equippedBanner?itemById(CU.equippedBanner):null;
+  const bd=CU.equippedBadge?itemById(CU.equippedBadge):null;
+  const prev=h('div',{class:'profile-card'});
+  prev.style.background=bn?bannerCss(bn):'var(--surface)';
+  prev.innerHTML='<div class="profile-head">'+avatarHtml(CU,52)+'<div><div class="profile-name">'+CU.name+
+    (bd?' <span class="shop-badge sm" style="border-color:'+(RARITY[bd.rarity]||{}).color+';color:'+(RARITY[bd.rarity]||{}).color+'">'+bd.name+'</span>':'')+
+    '</div><div class="profile-sub">Aperçu de ton profil</div></div></div>';
+  root.append(prev);
+
+  const section=(title,type)=>{
+    const items=owned.filter(i=>i.type===type);
+    root.append(h('h3',{},title+' ('+items.length+')'));
+    if(!items.length){ root.append(h('p',{class:'note'},'Aucun pour l\'instant.')); return; }
+    const grid=h('div',{class:'shop-grid'});
+    items.forEach(it=>{
+      const eqKey=it.type==='badge'?'equippedBadge':'equippedBanner';
+      const equipped=CU[eqKey]===it.id;
+      const card=h('div',{class:'shop-card'+(equipped?' equipped':'')});
+      card.innerHTML='<div class="shop-preview">'+itemChipHtml(it)+'</div>'+
+        '<div class="shop-name">'+it.name+'</div>'+
+        '<div class="shop-rarity" style="color:'+(RARITY[it.rarity]||{}).color+'">'+(RARITY[it.rarity]||{}).label+'</div>';
+      const btn=h('button',{class:'btn '+(equipped?'btn-ghost':'btn-primary')}, equipped?'Retirer':'Équiper');
+      btn.onclick=async()=>{ await equipItem(it); renderInventory(); };
+      card.append(btn); grid.append(card);
+    });
+    root.append(grid);
+  };
+  section('Badges','badge');
+  section('Bannières','banner');
+}
+
 /* =====================================================================
    PARAMÈTRES
    ===================================================================== */
@@ -746,6 +859,33 @@ function renderParam(){
     tg.append(s);
   });
   tc.append(tg); root.append(tc);
+  // photo de profil (URL)
+  if(!isGuest() && CU){
+    const ac=h('div',{class:'set-card'});
+    ac.append(h('h3',{},'Photo de profil'));
+    ac.append(h('p',{class:'note'},'Colle un lien direct vers une image (https://…). Elle n\'est pas hébergée par le site.'));
+    const prev=h('div',{style:'margin:8px 0'}); prev.innerHTML=avatarHtml(CU,64);
+    const inp=h('input',{type:'url',placeholder:'https://exemple.com/mon-image.png'});
+    inp.value=(CU.avatar||'');
+    const msg=h('div',{class:'error'});
+    const row=h('div',{class:'row2'});
+    const save=h('button',{class:'btn btn-primary'},'Enregistrer');
+    const clr=h('button',{class:'btn btn-ghost'},'Retirer');
+    save.onclick=async()=>{
+      const v=(inp.value||'').trim();
+      msg.className='error';
+      if(v && !/^https:\/\/\S+$/i.test(v)){ msg.textContent='Le lien doit commencer par https://'; return; }
+      CU.avatar=v;
+      try{ await DB.setUser(CU.name,{avatar:v}); }catch(e){}
+      msg.className='ok-msg'; msg.textContent='Photo mise à jour ✓';
+      prev.innerHTML=avatarHtml(CU,64);
+    };
+    clr.onclick=async()=>{ inp.value=''; CU.avatar=''; try{ await DB.setUser(CU.name,{avatar:''}); }catch(e){} prev.innerHTML=avatarHtml(CU,64); msg.className='ok-msg'; msg.textContent='Photo retirée ✓'; };
+    row.append(save,clr);
+    ac.append(prev,inp,row,msg);
+    root.append(ac);
+  }
+
   // mot de passe
   if(!isGuest() && CU){
     const pc=h('div',{class:'set-card'});
