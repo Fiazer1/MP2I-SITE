@@ -370,40 +370,81 @@ TEMPLATES.forEach(t=>{ if(t.week==null) t.week=30; });
    Pour ajouter un article : copie une ligne et change id/nom/prix.
    ===================================================================== */
 const RARITY = {
-  commun:     { label:'Commun',      price:150,  color:'#9aa6c4' },
-  rare:       { label:'Rare',        price:400,  color:'#4fd6e8' },
-  epique:     { label:'Épique',      price:900,  color:'#b06bff' },
-  legendaire: { label:'Légendaire',  price:2000, color:'#ffcf6b' }
+  commun:     { label:'Commun',      price:1000,    color:'#9aa6c4' },
+  rare:       { label:'Rare',        price:10000,   color:'#4fd6e8' },
+  epique:     { label:'Épique',      price:50000,   color:'#b06bff' },
+  legendaire: { label:'Légendaire',  price:100000,  color:'#ffcf6b' },
+  mythique:   { label:'Mythique',    price:500000,  color:'#ff5c7a' },
+  secret:     { label:'Secret',      price:1000000, color:'#7CFFB2' }
 };
 
+/* Motif répété (tapisserie) : un emoji semé sur un fond sombre.
+   Renvoie une valeur CSS `background` complète. */
+function tile(emoji, bg, size, opacity){
+  size = size || 44; opacity = (opacity==null?0.28:opacity);
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='"+size+"' height='"+size+"'>"
+            + "<text x='"+(size*0.28)+"' y='"+(size*0.42)+"' font-size='"+(size*0.38)+"' opacity='"+opacity+"'>"+emoji+"</text>"
+            + "<text x='"+(size*0.72)+"' y='"+(size*0.88)+"' font-size='"+(size*0.38)+"' opacity='"+opacity+"'>"+emoji+"</text>"
+            + "</svg>";
+  return "url(\"data:image/svg+xml;utf8," + encodeURIComponent(svg) + "\") repeat, " + bg;
+}
+
 const SHOP_ITEMS = [
-  // --- badges permanents ---
-  {id:'b_canard',   type:'badge', name:'🦆 Canard',        rarity:'commun',     perm:true,  desc:'L\'emblème de la MP2I.'},
+  // ---------- BADGES ----------
+  {id:'b_canard',   type:'badge', name:'🦆 Canard',        rarity:'commun',     perm:true,  desc:"L'emblème de la MP2I."},
   {id:'b_integral', type:'badge', name:'∫ Intégral',       rarity:'commun',     perm:true,  desc:'Pour ceux qui ont tout le cours.'},
   {id:'b_pivot',    type:'badge', name:'Pivot',            rarity:'commun',     perm:true,  desc:'Gauss serait fier.'},
   {id:'b_kholleur', type:'badge', name:'Khôlleur',         rarity:'rare',       perm:true,  desc:'Survivant du tableau.'},
   {id:'b_sigma',    type:'badge', name:'Σ Sommateur',      rarity:'rare',       perm:true,  desc:'Riemann approuve.'},
   {id:'b_matrix',   type:'badge', name:'Matriciel',        rarity:'epique',     perm:true,  desc:'Rang plein, toujours.'},
   {id:'b_qed',      type:'badge', name:'∎ QED',            rarity:'legendaire', perm:true,  desc:'La démo est finie.'},
-  // --- badges en rotation ---
+  {id:'b_bijection',type:'badge', name:'Bijection',        rarity:'mythique',   perm:true,  desc:'Ni plus, ni moins.'},
+  {id:'b_axiome',   type:'badge', name:'Axiome',           rarity:'secret',     perm:true,  desc:'Ne se démontre pas.'},
   {id:'b_lemme',    type:'badge', name:'Lemme vivant',     rarity:'rare',       perm:false, desc:'Toujours utile, jamais cité.'},
-  {id:'b_epsilon',  type:'badge', name:'ε > 0',            rarity:'rare',       perm:false, desc:'Aussi petit qu\'on veut.'},
+  {id:'b_epsilon',  type:'badge', name:'ε > 0',            rarity:'rare',       perm:false, desc:"Aussi petit qu'on veut."},
   {id:'b_cauchy',   type:'badge', name:'Cauchy',           rarity:'epique',     perm:false, desc:'Convergent, forcément.'},
   {id:'b_vvk',      type:'badge', name:'Disciple de VVK',  rarity:'legendaire', perm:false, desc:'Très rare. Très mérité.'},
   {id:'b_nuit',     type:'badge', name:'Nocturne',         rarity:'commun',     perm:false, desc:'Révise après minuit.'},
+  {id:'b_zeta',     type:'badge', name:'ζ(2)=π²/6',        rarity:'mythique',   perm:false, desc:'Bâle, 1734.'},
 
-  // --- bannières permanentes (dégradés) ---
-  {id:'n_violet', type:'banner', name:'Violet console', rarity:'commun',     perm:true,  css:'linear-gradient(90deg,#8b5cff,#e255a8)', desc:'Le thème maison.'},
-  {id:'n_ocean',  type:'banner', name:'Océan',          rarity:'commun',     perm:true,  css:'linear-gradient(90deg,#0ea5e9,#22d3ee)', desc:'Calme et clair.'},
-  {id:'n_matrix', type:'banner', name:'Matrice verte',  rarity:'rare',       perm:true,  css:'linear-gradient(90deg,#16a34a,#a3e635)', desc:'Suis le lapin blanc.'},
-  {id:'n_sunset', type:'banner', name:'Coucher',        rarity:'rare',       perm:true,  css:'linear-gradient(90deg,#f97316,#e255a8)', desc:'Fin de DS.'},
-  {id:'n_gold',   type:'banner', name:'Or massif',      rarity:'legendaire', perm:true,  css:'linear-gradient(90deg,#b45309,#ffcf6b,#b45309)', desc:'Le luxe.'},
-  // --- bannières en rotation ---
-  {id:'n_sakura', type:'banner', name:'Sakura',         rarity:'rare',       perm:false, css:'linear-gradient(90deg,#e85a9b,#f59e5e)', desc:'Printemps.'},
-  {id:'n_nuit',   type:'banner', name:'Nuit profonde',  rarity:'epique',     perm:false, css:'linear-gradient(90deg,#1e3a8a,#7c3aed)', desc:'Silence et concentration.'},
-  {id:'n_neon',   type:'banner', name:'Néon',           rarity:'epique',     perm:false, css:'linear-gradient(90deg,#f0abfc,#22d3ee)', desc:'Cyber.'},
-  {id:'n_duck',   type:'banner', name:'Canard doré',    rarity:'legendaire', perm:false, css:'linear-gradient(90deg,#78350f,#fbbf24,#fde68a)', desc:'Emblème suprême.'}
+  // ---------- BANNIÈRES (fond complet de ta ligne / de ton profil) ----------
+  {id:'n_violet', type:'banner', name:'Violet console', rarity:'commun',  perm:true,
+   css:'linear-gradient(90deg,#2a1a4a,#4a1f3d)', desc:'Le thème maison.'},
+  {id:'n_ocean',  type:'banner', name:'Océan',          rarity:'commun',  perm:true,
+   css:'linear-gradient(90deg,#0b3a52,#0e5566)', desc:'Calme et clair.'},
+  {id:'n_ardoise',type:'banner', name:'Ardoise',        rarity:'commun',  perm:true,
+   css:'linear-gradient(90deg,#1b2130,#2a3244)', desc:'Sobre et propre.'},
+  {id:'n_matrix', type:'banner', name:'Matrice verte',  rarity:'rare',    perm:true,
+   css:"tile:0️⃣1️⃣|linear-gradient(90deg,#04170c,#0a2c16)", desc:'Suis le lapin blanc.'},
+  {id:'n_sunset', type:'banner', name:'Coucher',        rarity:'rare',    perm:true,
+   css:'linear-gradient(90deg,#7a2d12,#a83a5c)', desc:'Fin de DS.'},
+  {id:'n_maths',  type:'banner', name:'Tapisserie ∫',   rarity:'epique',  perm:true,
+   css:'tile:∫|linear-gradient(90deg,#141024,#241a3d)', desc:'Des intégrales partout.'},
+  {id:'n_gold',   type:'banner', name:'Or massif',      rarity:'legendaire', perm:true,
+   css:'linear-gradient(90deg,#4a2f06,#8a6516,#4a2f06)', desc:'Le luxe.'},
+  {id:'n_duck',   type:'banner', name:'Canards',        rarity:'legendaire', perm:true,
+   css:'tile:🦆|#0a0a0a', desc:'Une tapisserie de canards. Noir profond.'},
+  {id:'n_sakura', type:'banner', name:'Sakura',         rarity:'rare',    perm:false,
+   css:'tile:🌸|linear-gradient(90deg,#3d1024,#5c1a33)', desc:'Printemps.'},
+  {id:'n_nuit',   type:'banner', name:'Nuit profonde',  rarity:'epique',  perm:false,
+   css:'tile:✦|linear-gradient(90deg,#0b1233,#241a4d)', desc:'Silence et concentration.'},
+  {id:'n_neon',   type:'banner', name:'Néon',           rarity:'epique',  perm:false,
+   css:'linear-gradient(90deg,#3d1a54,#0e4a5c)', desc:'Cyber.'},
+  {id:'n_pi',     type:'banner', name:'Tapisserie π',   rarity:'mythique', perm:false,
+   css:'tile:π|linear-gradient(90deg,#101c14,#16321f)', desc:'Irrationnel et transcendant.'},
+  {id:'n_duckgold',type:'banner',name:'Canard doré',    rarity:'secret',  perm:false,
+   css:'tile:🦆|linear-gradient(90deg,#2a1a02,#6b4a08,#2a1a02)', desc:'Le Graal. Coin-coin.'}
 ];
+
+// Résout la valeur CSS d'une bannière ("tile:EMOJI|fond" ou une valeur CSS directe)
+function bannerCss(item){
+  if(!item || !item.css) return 'transparent';
+  if(item.css.indexOf('tile:')===0){
+    const rest=item.css.slice(5), i=rest.indexOf('|');
+    return tile(rest.slice(0,i), rest.slice(i+1));
+  }
+  return item.css;
+}
 
 // Sélection déterministe des articles en rotation pour une semaine donnée.
 // Même semaine = même boutique pour tout le monde ; change automatiquement chaque semaine.
