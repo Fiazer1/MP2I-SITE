@@ -4,9 +4,9 @@
 
 /* --- Élèves (depuis Noms.txt) --- */
 const STUDENTS = [
-  "Ilias","Zineb","Lucas","Antonin","Cali","BOI. Enzo","Augustin",
+  "Ilias","Zineb","Lucas","ABL. Adam","Antonin","Cali","BOI. Enzo","Augustin",
   "Yassine","Roman","Charles","Amaury","Hugo","Juan","Théa","Jules","Robin",
-  "Louis","Nathan","Félix","Maxence","Alrick","Noémi","Asma","Rémi",
+  "Louis","Nathan","Félix","Maxence","Alrick","Noémi","Enes","Asma","Rémi",
   "Jean","Gael","Ayo","Elouan","BAT. Enzo","BEN. Adam","Ahmed","Alexis","Gabriel"
 ];
 
@@ -359,3 +359,64 @@ TEMPLATES.push(
    ===================================================================== */
 QUESTIONS.forEach(q=>{ if(q.week==null) q.week=30; });
 TEMPLATES.forEach(t=>{ if(t.week==null) t.week=30; });
+
+/* =====================================================================
+   BOUTIQUE — badges & bannières
+   ---------------------------------------------------------------------
+   type   : "badge" (pastille à côté du nom) ou "banner" (fond de ta ligne)
+   rarity : commun | rare | epique | legendaire  (couleur + prix indicatif)
+   perm   : true  -> toujours en boutique
+            false -> en rotation, une partie seulement chaque semaine
+   Pour ajouter un article : copie une ligne et change id/nom/prix.
+   ===================================================================== */
+const RARITY = {
+  commun:     { label:'Commun',      price:150,  color:'#9aa6c4' },
+  rare:       { label:'Rare',        price:400,  color:'#4fd6e8' },
+  epique:     { label:'Épique',      price:900,  color:'#b06bff' },
+  legendaire: { label:'Légendaire',  price:2000, color:'#ffcf6b' }
+};
+
+const SHOP_ITEMS = [
+  // --- badges permanents ---
+  {id:'b_canard',   type:'badge', name:'🦆 Canard',        rarity:'commun',     perm:true,  desc:'L\'emblème de la MP2I.'},
+  {id:'b_integral', type:'badge', name:'∫ Intégral',       rarity:'commun',     perm:true,  desc:'Pour ceux qui ont tout le cours.'},
+  {id:'b_pivot',    type:'badge', name:'Pivot',            rarity:'commun',     perm:true,  desc:'Gauss serait fier.'},
+  {id:'b_kholleur', type:'badge', name:'Khôlleur',         rarity:'rare',       perm:true,  desc:'Survivant du tableau.'},
+  {id:'b_sigma',    type:'badge', name:'Σ Sommateur',      rarity:'rare',       perm:true,  desc:'Riemann approuve.'},
+  {id:'b_matrix',   type:'badge', name:'Matriciel',        rarity:'epique',     perm:true,  desc:'Rang plein, toujours.'},
+  {id:'b_qed',      type:'badge', name:'∎ QED',            rarity:'legendaire', perm:true,  desc:'La démo est finie.'},
+  // --- badges en rotation ---
+  {id:'b_lemme',    type:'badge', name:'Lemme vivant',     rarity:'rare',       perm:false, desc:'Toujours utile, jamais cité.'},
+  {id:'b_epsilon',  type:'badge', name:'ε > 0',            rarity:'rare',       perm:false, desc:'Aussi petit qu\'on veut.'},
+  {id:'b_cauchy',   type:'badge', name:'Cauchy',           rarity:'epique',     perm:false, desc:'Convergent, forcément.'},
+  {id:'b_vvk',      type:'badge', name:'Disciple de VVK',  rarity:'legendaire', perm:false, desc:'Très rare. Très mérité.'},
+  {id:'b_nuit',     type:'badge', name:'Nocturne',         rarity:'commun',     perm:false, desc:'Révise après minuit.'},
+
+  // --- bannières permanentes (dégradés) ---
+  {id:'n_violet', type:'banner', name:'Violet console', rarity:'commun',     perm:true,  css:'linear-gradient(90deg,#8b5cff,#e255a8)', desc:'Le thème maison.'},
+  {id:'n_ocean',  type:'banner', name:'Océan',          rarity:'commun',     perm:true,  css:'linear-gradient(90deg,#0ea5e9,#22d3ee)', desc:'Calme et clair.'},
+  {id:'n_matrix', type:'banner', name:'Matrice verte',  rarity:'rare',       perm:true,  css:'linear-gradient(90deg,#16a34a,#a3e635)', desc:'Suis le lapin blanc.'},
+  {id:'n_sunset', type:'banner', name:'Coucher',        rarity:'rare',       perm:true,  css:'linear-gradient(90deg,#f97316,#e255a8)', desc:'Fin de DS.'},
+  {id:'n_gold',   type:'banner', name:'Or massif',      rarity:'legendaire', perm:true,  css:'linear-gradient(90deg,#b45309,#ffcf6b,#b45309)', desc:'Le luxe.'},
+  // --- bannières en rotation ---
+  {id:'n_sakura', type:'banner', name:'Sakura',         rarity:'rare',       perm:false, css:'linear-gradient(90deg,#e85a9b,#f59e5e)', desc:'Printemps.'},
+  {id:'n_nuit',   type:'banner', name:'Nuit profonde',  rarity:'epique',     perm:false, css:'linear-gradient(90deg,#1e3a8a,#7c3aed)', desc:'Silence et concentration.'},
+  {id:'n_neon',   type:'banner', name:'Néon',           rarity:'epique',     perm:false, css:'linear-gradient(90deg,#f0abfc,#22d3ee)', desc:'Cyber.'},
+  {id:'n_duck',   type:'banner', name:'Canard doré',    rarity:'legendaire', perm:false, css:'linear-gradient(90deg,#78350f,#fbbf24,#fde68a)', desc:'Emblème suprême.'}
+];
+
+// Sélection déterministe des articles en rotation pour une semaine donnée.
+// Même semaine = même boutique pour tout le monde ; change automatiquement chaque semaine.
+function shopForWeek(weekId, nbRotating){
+  nbRotating = nbRotating || 4;
+  const perm = SHOP_ITEMS.filter(i=>i.perm);
+  const rot  = SHOP_ITEMS.filter(i=>!i.perm);
+  let seed=0; for(let i=0;i<weekId.length;i++) seed=(seed*31+weekId.charCodeAt(i))|0;
+  seed=Math.abs(seed);
+  const pool=rot.slice(), picked=[];
+  for(let k=0;k<Math.min(nbRotating,pool.length);k++){
+    seed=(seed*1103515245+12345)&0x7fffffff;
+    picked.push(pool.splice(seed%pool.length,1)[0]);
+  }
+  return { perm, rotating:picked };
+}
