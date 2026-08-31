@@ -794,6 +794,46 @@ function renderAdmin(){
   };
   c1.append(b1,m1); root.append(c1);
 
+  // conversion forcée points -> $MPI
+  const cC=h('div',{class:'adm-card'});
+  cC.append(h('h3',{},'Convertir les points en '+CURRENCY_NAME));
+  cC.append(h('p',{class:'note'},'Transforme les points de la semaine en '+CURRENCY_NAME+' (1 pour 1) et remet les points à zéro. Utile pour forcer la clôture d\'une semaine sans attendre le lundi.'));
+  const selC=h('select',{});
+  selC.append(h('option',{value:'__all__'},'— Tout le monde —'));
+  STUDENTS.forEach(n=>selC.append(h('option',{value:n},n)));
+  const mC=h('div',{class:'ok-msg'});
+  const bC=h('button',{class:'btn btn-primary'},'Convertir'); bC.style.marginTop='10px';
+  // Un stamp différent de la semaine courante est requis par les règles Firestore
+  const forcedStamp=()=> isoWeekId(new Date())+'#'+Date.now().toString(36);
+  async function convertOne(u){
+    const gained=u.totalPoints||0;
+    if(gained<=0) return 0;
+    await DB.setUser(u.name,{ currency:(u.currency||0)+gained, totalPoints:0, currentStreak:0,
+                              weekStamp:forcedStamp(), lastWrite:nowStamp() });
+    if(CU && CU.name===u.name){ CU.currency=(CU.currency||0)+gained; CU.totalPoints=0; CU.currentStreak=0; }
+    return gained;
+  }
+  bC.onclick=async()=>{
+    const who=selC.value;
+    const label = who==='__all__' ? 'TOUS les comptes' : who;
+    if(!confirm('Convertir les points en '+CURRENCY_NAME+' pour '+label+' ?')) return;
+    bC.disabled=true; mC.textContent='Conversion en cours…';
+    try{
+      let total=0, n=0;
+      if(who==='__all__'){
+        for(const u of await DB.listUsers()){ const g=await convertOne(u); if(g>0){ total+=g; n++; } }
+        mC.textContent=n+' compte(s) converti(s), '+total+' '+CURRENCY_NAME+' distribués ✓';
+      } else {
+        const u=await DB.getUser(who);
+        if(!u){ mC.textContent='Compte introuvable.'; }
+        else { const g=await convertOne(u); mC.textContent = g>0 ? (who+' : +'+g+' '+CURRENCY_NAME+' ✓') : (who+' n\'avait aucun point à convertir.'); }
+      }
+      buildTopbar(getSession());
+    }catch(e){ mC.textContent='Erreur pendant la conversion.'; console.warn(e); }
+    bC.disabled=false;
+  };
+  cC.append(h('label',{class:'field'},'Cible'),selC,bC,mC); root.append(cC);
+
   // reset des scores d'UNE personne
   const cP=h('div',{class:'adm-card'});
   cP.append(h('h3',{},'Réinitialiser les scores d\'un élève'));
