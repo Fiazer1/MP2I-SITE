@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terminal de Maths — MPI/MP2I</title>
+<title>Terminal de Maths — MP2I</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
@@ -30,13 +30,18 @@
     <div class="panel" id="tab-inventaire"></div>
     <div class="panel" id="tab-param"></div>
     <div class="panel" id="tab-admin"></div>
-    <p class="footnote"> -MPI/MP2I · révise, entraine toi, grimpe au classement-</p>
+    <p class="footnote">// MP2I · révise, entraine toi, grimpe au classement</p>
   </section>
 </div>
 
 <!-- config AVANT data/app -->
 <script src="config.js"></script>
-<script src="data.js"></script>
+<!-- Données : core d'abord (déclare les conteneurs), puis un fichier par semaine.
+     Pour ajouter une semaine : créer data/wXX.js et ajouter une ligne ici. -->
+<script src="data/core.js"></script>
+<script src="data/shop.js"></script>
+<script src="data/w01.js"></script>
+<script src="data/w30.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
