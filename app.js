@@ -63,18 +63,31 @@ const CURRENCY_NAME='$MPI';   // MPI-dollars
 async function maybeWeeklyConversion(){
   if(!CU || isGuest()) return 0;
   const now=isoWeekId(new Date());
-  if(!CU.weekStamp){ CU.weekStamp=now; try{ await DB.setUser(CU.name,{weekStamp:now}); }catch(e){} return 0; }
-  if(CU.weekStamp===now) return 0;
+  const prev=CU.weekStamp||'';
+  // Premier passage : on pose seulement le repère, sans rien convertir.
+  if(!prev){ CU.weekStamp=now; try{ await DB.setUser(CU.name,{weekStamp:now}); }catch(e){} return 0; }
+  // Repère invalide (ancien format) : on le remet d'aplomb sans convertir.
+  if(!/^\d{4}-W\d{2}$/.test(prev)){ CU.weekStamp=now; try{ await DB.setUser(CU.name,{weekStamp:now}); }catch(e){} return 0; }
+  // Même semaine ISO -> rien. La bascule n'a lieu qu'au passage au lundi suivant.
+  if(prev===now) return 0;
   const gained=CU.totalPoints||0;
   CU.currency=(CU.currency||0)+gained;
-  CU.totalPoints=0; CU.currentStreak=0; CU.weekStamp=now;
-  try{ await DB.setUser(CU.name,{currency:CU.currency, totalPoints:0, currentStreak:0, weekStamp:now, lastWrite:nowStamp()}); }catch(e){}
+  CU.totalPoints=0; CU.weekStamp=now;
+  // On n'écrit QUE ces trois champs : séries, tentatives, all-time, chapitres intacts.
+  try{ await DB.setUser(CU.name,{currency:CU.currency, totalPoints:0, weekStamp:now}); }catch(e){}
   return gained;
 }
 async function seedIfNeeded(){
+  // Ne crée QUE les comptes réellement absents. Ne réécrit jamais un compte
+  // existant (sinon un incident réseau remettrait tous les scores à zéro).
   const users=await DB.listUsers();
-  if(users.length>0) return;
-  for(const name of STUDENTS){ const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; u.lastWrite=nowStamp(); await DB.setUser(name,u); }
+  const existing=new Set(users.map(u=>u.name));
+  if(existing.size>0 && existing.size>=STUDENTS.length) return;
+  for(const name of STUDENTS){
+    if(existing.has(name)) continue;
+    const u=blankUser(name); u.passwordHash=DEFAULT_PASSWORD_HASH; u.lastWrite=nowStamp();
+    await DB.setUser(name,u);
+  }
 }
 
 /* ---------- session ---------- */
@@ -522,7 +535,6 @@ function showExplain(ok, verdict, txt, pts){
 }
 function snapshotCU(){
   return {attempts:CU.attempts, correct:CU.correct, totalPoints:CU.totalPoints, lifetimePoints:CU.lifetimePoints||0,
-          currency:CU.currency||0, weekStamp:CU.weekStamp||'',
           currentStreak:CU.currentStreak, bestStreak:CU.bestStreak, chapters:CU.chapters, lastWrite:nowStamp()};
 }
 // File d'attente : on tente d'écrire le snapshot courant ; si la règle refuse
@@ -944,13 +956,12 @@ function renderAdmin(){
   const mC=h('div',{class:'ok-msg'});
   const bC=h('button',{class:'btn btn-primary'},'Convertir'); bC.style.marginTop='10px';
   // Un stamp différent de la semaine courante est requis par les règles Firestore
-  const forcedStamp=()=> isoWeekId(new Date())+'#'+Date.now().toString(36);
   async function convertOne(u){
     const gained=u.totalPoints||0;
     if(gained<=0) return 0;
-    await DB.setUser(u.name,{ currency:(u.currency||0)+gained, totalPoints:0, currentStreak:0,
-                              weekStamp:forcedStamp(), lastWrite:nowStamp() });
-    if(CU && CU.name===u.name){ CU.currency=(CU.currency||0)+gained; CU.totalPoints=0; CU.currentStreak=0; }
+    // On garde un repère de semaine PROPRE : la conversion reste strictement hebdo ensuite.
+    await DB.setUser(u.name,{ currency:(u.currency||0)+gained, totalPoints:0, weekStamp:isoWeekId(new Date()) });
+    if(CU && CU.name===u.name){ CU.currency=(CU.currency||0)+gained; CU.totalPoints=0; CU.weekStamp=isoWeekId(new Date()); }
     return gained;
   }
   bC.onclick=async()=>{
