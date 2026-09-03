@@ -259,6 +259,12 @@ function findModule(matiere,chap,week){
 }
 function renderCours(){
   const root=$('#tab-cours'); root.innerHTML='';
+  // Mobile : la liste des chapitres devient un panneau coulissant (drawer)
+  const drawerBtn=h('button',{class:'drawer-btn'},'☰ <span id="drawer-label">Choisir un chapitre</span>');
+  const backdrop=h('div',{class:'drawer-backdrop'});
+  const openDrawer=()=>{ nav.classList.add('open'); backdrop.classList.add('show'); document.body.classList.add('no-scroll'); };
+  const closeDrawer=()=>{ nav.classList.remove('open'); backdrop.classList.remove('show'); document.body.classList.remove('no-scroll'); };
+  drawerBtn.onclick=openDrawer; backdrop.onclick=closeDrawer;
   const toggle=h('div',{class:'toggle-row'});
   const c1=h('button',{class:'chip','aria-pressed':String(coursGroupBy==='chapitre')},'Par chapitre');
   const c2=h('button',{class:'chip','aria-pressed':String(coursGroupBy==='semaine')},'Par semaine');
@@ -267,9 +273,12 @@ function renderCours(){
   toggle.append(c1,c2);
   const grid=h('div',{class:'course-grid'});
   const nav=h('div',{class:'nav-list'});
+  const closeBtn=h('button',{class:'drawer-close'},'✕');
+  closeBtn.onclick=()=>closeDrawer();
+  nav.append(closeBtn);
   const content=h('div',{id:'cours-content'});
   grid.append(nav,content);
-  root.append(toggle,grid);
+  root.append(drawerBtn,toggle,backdrop,grid);
 
   function showModule(mod, weekLabel){
     content.innerHTML='';
@@ -285,7 +294,10 @@ function renderCours(){
       CURRICULUM[mat].forEach(ch=>{
         const mod=findModule(mat, ch.num, null);
         const a=h('a',{class: mod?'':'empty'}, mat[0]+ch.num+' · '+ch.title);
-        a.onclick=()=>{ $$('.nav-list a').forEach(x=>x.classList.remove('active')); a.classList.add('active'); mod?showModule(mod):emptyMsg(mat+' '+ch.num); };
+        a.onclick=()=>{ $$('.nav-list a').forEach(x=>x.classList.remove('active')); a.classList.add('active');
+          mod?showModule(mod):emptyMsg(mat+' '+ch.num);
+          const lb=$('#drawer-label'); if(lb) lb.textContent=mat[0]+ch.num+' · '+ch.title;
+          closeDrawer(); };
         nav.append(a);
       });
     });
@@ -296,6 +308,8 @@ function renderCours(){
       const a=h('a',{class: mods.length?'':'empty'}, 'Semaine '+String(w).padStart(2,'0'));
       a.onclick=()=>{
         $$('.nav-list a').forEach(x=>x.classList.remove('active')); a.classList.add('active');
+        const lb=$('#drawer-label'); if(lb) lb.textContent='Semaine '+String(w).padStart(2,'0');
+        closeDrawer();
         if(!mods.length){ emptyMsg('Semaine '+w); return; }
         content.innerHTML=''; content.append(h('h2',{class:'sec'},'Semaine '+String(w).padStart(2,'0')));
         mods.forEach(mod=>{ content.append(h('h3',{}, '— '+mod.matiere+' '+mod.chap+' : '+mod.chapTitle)); content.append(h('div',{html:moduleSections(mod)})); });
@@ -383,6 +397,7 @@ function refreshFilterChips(key){
   const all=$('#flt-all-'+key); if(all) all.setAttribute('aria-pressed', String(f.all));
   $$('.flt-chip-'+key).forEach(c=>{ const v=c.dataset.val; c.setAttribute('aria-pressed', String(!f.all && f.set.has(v))); });
   const sum=$('#flt-summary-'+key); if(sum) sum.textContent=filterSummary(key);
+  const lab=$('#flt-btn-label'); if(lab) lab.textContent='Filtres : '+filterSummary('chap')+' · '+filterSummary('week');
 }
 function renderFilterBox(key, root){
   const f=FILTERS[key], items=f.list();
@@ -428,11 +443,24 @@ function renderQuizHome(){
   intro.append(h('p',{class:'note'}, isGuest()?'Mode invité : tu peux jouer mais aucun point n\'est enregistré.':'Choisis un mode pour commencer.'));
   root.append(intro);
 
-  // Filtres (Libre & Favoris uniquement) — repliables + scrollables
+  // Filtres (Libre & Favoris uniquement).
+  // Desktop : deux boîtes repliables. Mobile : un panneau qui glisse depuis la droite.
   const showFilter = (quiz.mode==null || quiz.mode==='libre' || quiz.mode==='favoris');
   if(showFilter){
-    renderFilterBox('chap', root);
-    renderFilterBox('week', root);
+    const fbtn=h('button',{class:'drawer-btn',id:'flt-open'},'⚙ <span id="flt-btn-label">Filtres : '+filterSummary('chap')+' · '+filterSummary('week')+'</span>');
+    const fback=h('div',{class:'drawer-backdrop',id:'flt-back'});
+    const wrap=h('div',{class:'filters-wrap',id:'filters-wrap'});
+    const fclose=h('button',{class:'drawer-close'},'✕');
+    const closeF=()=>{ wrap.classList.remove('open'); fback.classList.remove('show'); document.body.classList.remove('no-scroll'); };
+    fbtn.onclick=()=>{ wrap.classList.add('open'); fback.classList.add('show'); document.body.classList.add('no-scroll'); };
+    fclose.onclick=closeF; fback.onclick=closeF;
+    wrap.append(fclose);
+    renderFilterBox('chap', wrap);
+    renderFilterBox('week', wrap);
+    const apply=h('button',{class:'btn btn-primary',id:'flt-apply'},'Voir les questions');
+    apply.onclick=()=>{ closeF(); if(quiz.mode){ startQuiz(quiz.mode); } };
+    wrap.append(apply);
+    root.append(fbtn,fback,wrap);
   }
 
   const sb=h('div',{class:'scorebar',id:'quiz-scorebar'}); root.append(sb);
