@@ -116,7 +116,7 @@ th{background:var(--surface2);color:var(--cyan);font-family:ui-monospace,monospa
 .nav-list a.active{color:var(--ink);background:var(--surface);border-left-color:var(--cyan)}
 .nav-list a.empty{opacity:.45}
 .locked-note{color:var(--faint);font-style:italic;padding:30px;text-align:center;border:1px dashed var(--line);border-radius:14px}
-@media(max-width:760px){.course-grid{grid-template-columns:1fr}.nav-list{position:static;max-height:none;border-bottom:1px solid var(--line);padding-bottom:8px}}
+
 
 /* ===================== QUIZ ===================== */
 .quiz{max-width:760px;margin:0 auto}
@@ -227,3 +227,70 @@ th{background:var(--surface2);color:var(--cyan);font-family:ui-monospace,monospa
 /* bannière en fond de ligne du classement : on garde le texte lisible */
 .lb-table tr.has-banner td{background:linear-gradient(90deg,rgba(0,0,0,.55),rgba(0,0,0,.3));color:#fff}
 .lb-table tr.has-banner td.lb-val{color:#eaf6ff}
+
+
+/* ===================== MOBILE : PANNEAU COULISSANT + MENUS ===================== */
+.drawer-btn{display:none}
+.drawer-close{display:none}
+.drawer-backdrop{display:none}
+
+@media(max-width:820px){
+  .wrap{padding:16px 12px 70px}
+
+  /* Onglets : une seule ligne défilante au lieu d'un empilement */
+  .tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;padding:11px 12px;font-size:.78rem}
+
+  /* Bouton d'ouverture du panneau */
+  .drawer-btn{display:flex;align-items:center;gap:8px;width:100%;margin-bottom:12px;
+    background:linear-gradient(180deg,var(--surface),var(--surface2));color:var(--ink);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-family:ui-monospace,monospace;
+    font-size:.82rem;cursor:pointer;text-align:left}
+  .drawer-btn #drawer-label{color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* Le panneau lui-même */
+  .course-grid{grid-template-columns:1fr;gap:0}
+  .nav-list{position:fixed;top:0;left:0;bottom:0;z-index:60;width:min(84vw,330px);
+    max-height:none;padding:52px 14px 24px;overflow-y:auto;
+    background:var(--bg2);border-right:1px solid var(--line);
+    box-shadow:8px 0 30px rgba(0,0,0,.5);
+    transform:translateX(-102%);transition:transform .26s ease}
+  .nav-list.open{transform:translateX(0)}
+  .nav-list a{padding:10px 12px;font-size:.9rem}
+  .drawer-close{display:block;position:absolute;top:10px;right:12px;background:var(--surface);
+    color:var(--muted);border:1px solid var(--line);border-radius:8px;width:32px;height:32px;
+    font-size:1rem;cursor:pointer;line-height:1}
+  .drawer-backdrop{display:block;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.55);
+    opacity:0;pointer-events:none;transition:opacity .26s ease}
+  .drawer-backdrop.show{opacity:1;pointer-events:auto}
+  body.no-scroll{overflow:hidden}
+
+  /* Divers : éviter les empilements serrés */
+  .mode-row .btn{flex:1 1 auto}
+  .scorebar .stat{min-width:calc(50% - 5px)}
+  .profile-grid{grid-template-columns:1fr}
+  .shop-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .lb-controls select{max-width:100%}
+  h1.title{font-size:1.9rem}
+}
+
+/* ===================== FILTRES : panneau latéral sur mobile ===================== */
+.filters-wrap{display:block}
+.filters-wrap #flt-apply{display:none}
+@media(max-width:820px){
+  .filters-wrap{position:fixed;top:0;right:0;bottom:0;z-index:60;width:min(86vw,340px);
+    padding:52px 14px 24px;overflow-y:auto;background:var(--bg2);border-left:1px solid var(--line);
+    box-shadow:-8px 0 30px rgba(0,0,0,.5);transform:translateX(102%);transition:transform .26s ease}
+  .filters-wrap.open{transform:translateX(0)}
+  .filters-wrap .drawer-close{display:block;top:10px;right:12px;left:auto}
+  .filters-wrap .filter-head .caret{display:none}
+  .filters-wrap .filter-body{display:flex;max-height:none}   /* toujours dépliés dans le panneau */
+  .filters-wrap .filter-head{cursor:default}
+  .filters-wrap #flt-apply{display:block;width:100%;margin-top:14px}
+  /* stats plus compactes pour laisser voir la question */
+  .scorebar{gap:8px}
+  .scorebar .stat{min-width:calc(50% - 4px);padding:8px 10px}
+  .scorebar .stat .val{font-size:1.1rem}
+  .mode-row .btn{padding:10px 12px;font-size:.76rem}
+}
