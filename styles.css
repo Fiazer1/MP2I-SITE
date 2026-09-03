@@ -252,7 +252,8 @@ th{background:var(--surface2);color:var(--cyan);font-family:ui-monospace,monospa
   /* Le panneau lui-même */
   .course-grid{grid-template-columns:1fr;gap:0}
   .nav-list{position:fixed;top:0;left:0;bottom:0;z-index:60;width:min(84vw,330px);
-    max-height:none;padding:52px 14px 24px;overflow-y:auto;
+    height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;
+    padding:52px 14px 24px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
     background:var(--bg2);border-right:1px solid var(--line);
     box-shadow:8px 0 30px rgba(0,0,0,.5);
     transform:translateX(-102%);transition:transform .26s ease}
@@ -280,7 +281,9 @@ th{background:var(--surface2);color:var(--cyan);font-family:ui-monospace,monospa
 .filters-wrap #flt-apply{display:none}
 @media(max-width:820px){
   .filters-wrap{position:fixed;top:0;right:0;bottom:0;z-index:60;width:min(86vw,340px);
-    padding:52px 14px 24px;overflow-y:auto;background:var(--bg2);border-left:1px solid var(--line);
+    height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;
+    padding:52px 14px 24px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    background:var(--bg2);border-left:1px solid var(--line);
     box-shadow:-8px 0 30px rgba(0,0,0,.5);transform:translateX(102%);transition:transform .26s ease}
   .filters-wrap.open{transform:translateX(0)}
   .filters-wrap .drawer-close{display:block;top:10px;right:12px;left:auto}
