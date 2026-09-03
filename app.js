@@ -366,11 +366,27 @@ function showEmptyFav(){
   showEmptyMsg(txt);
 }
 
+// "Algèbre 15" -> {mat:"Algèbre", num:"15"}
+function splitChap(chap){ const i=chap.indexOf(' '); return {mat:chap.slice(0,i), num:chap.slice(i+1)}; }
+// Libellé compact : "AN-1A : Nombres réels" / "AL-15 : Matrices"
+function chapLabel(chap){
+  const {mat,num}=splitChap(chap);
+  const pref = mat==='Analyse' ? 'AN' : 'AL';
+  const entry=(CURRICULUM[mat]||[]).find(c=>c.num===num);
+  return pref+'-'+num+(entry ? ' : '+entry.title : '');
+}
+// Ordre du programme (et non alphabétique : Algèbre 2 avant Algèbre 15)
+function chapRank(chap){
+  const {mat,num}=splitChap(chap);
+  const list=CURRICULUM[mat]||[];
+  const i=list.findIndex(c=>c.num===num);
+  return (mat==='Analyse'?0:1)*1000 + (i<0?999:i);
+}
 function availableChaps(){
   const s=new Set();
   for(const q of QUESTIONS) s.add(q.chap);
   if(typeof TEMPLATES!=='undefined') for(const t of TEMPLATES) s.add(t.chap);
-  return [...s].sort();
+  return [...s].sort((a,b)=>chapRank(a)-chapRank(b));
 }
 function availableWeeks(){
   const s=new Set();
@@ -380,7 +396,7 @@ function availableWeeks(){
 }
 // Deux filtres indépendants, combinés en ET. Valeurs stockées en chaînes.
 const FILTERS = {
-  chap:{ all:true, set:new Set(), open:false, label:'Chapitres', list:availableChaps, fmt:v=>v },
+  chap:{ all:true, set:new Set(), open:false, label:'Chapitres', list:availableChaps, fmt:v=>chapLabel(v), grid:true },
   week:{ all:true, set:new Set(), open:false, label:'Semaines', list:availableWeeks, fmt:v=>'S'+String(v).padStart(2,'0') }
 };
 function matchOne(f,v){ return f.all || f.set.has(String(v)); }
@@ -389,7 +405,7 @@ function favPoolActive(){ return favPool().filter(q=>passFilter(q)); }
 function filterSummary(key){
   const f=FILTERS[key], a=[...f.set];
   if(f.all || a.length===0) return 'Tout';
-  const labels=a.map(v=>f.fmt(v));
+  const labels=a.map(v=> key==='chap' ? chapLabel(v).split(' : ')[0] : f.fmt(v));
   return labels.length<=2 ? labels.join(', ') : (labels.length+(key==='week'?' semaines':' chapitres'));
 }
 function refreshFilterChips(key){
@@ -406,7 +422,7 @@ function renderFilterBox(key, root){
   const head=h('div',{class:'filter-head'});
   head.innerHTML='<span>'+f.label+' <span style="opacity:.65">(Libre &amp; Favoris)</span> : <b id="flt-summary-'+key+'">'+filterSummary(key)+'</b></span><span class="caret">▸</span>';
   head.onclick=()=>{ f.open=!f.open; box.classList.toggle('open', f.open); };
-  const body=h('div',{class:'filter-body'});
+  const body=h('div',{class:'filter-body'+(f.grid?' chips-grid':'')});
   const allChip=h('button',{class:'chip',id:'flt-all-'+key,'aria-pressed':String(f.all)},'Tout');
   allChip.onclick=()=>{ f.all=true; f.set.clear(); refreshFilterChips(key); };
   body.append(allChip);
